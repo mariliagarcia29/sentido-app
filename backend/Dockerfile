@@ -10,9 +10,6 @@ RUN pnpm install --frozen-lockfile
 COPY . .
 RUN pnpm run build
 
-# Remove devDependencies after build
-RUN CI=true pnpm prune --prod
-
 # ── Stage 2: production ───────────────────────────────────────
 FROM node:20-alpine AS production
 WORKDIR /app
@@ -21,6 +18,7 @@ ENV NODE_ENV=production
 
 RUN addgroup -g 1001 -S nodejs && adduser -S nestjs -u 1001
 
+# Copy full node_modules (includes peer deps like express)
 COPY --from=builder --chown=nestjs:nodejs /app/node_modules ./node_modules
 COPY --from=builder --chown=nestjs:nodejs /app/dist         ./dist
 COPY --from=builder --chown=nestjs:nodejs /app/package.json ./package.json
