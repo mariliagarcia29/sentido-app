@@ -58,7 +58,7 @@ export default function RecordsPage() {
   const saveSymptom = async () => {
     setSaving(true);
     try {
-      const { data } = await recordsApi.createSymptom({ name: symName, severity: symSeverity, note: symNote, isPrivate: symPrivate });
+      const { data } = await recordsApi.createSymptom({ symptom: symName, severity: symSeverity, isPrivate: symPrivate });
       setSymptoms((p) => [data, ...p]);
       setSymName(''); setSymNote(''); setSymSeverity('low'); setSymPrivate(false); setShowForm(false);
     } finally { setSaving(false); }
@@ -67,7 +67,7 @@ export default function RecordsPage() {
   const saveMedication = async () => {
     setSaving(true);
     try {
-      const { data } = await recordsApi.createMedication({ name: medName, dose: medDose, taken: medTaken, scheduledAt: medScheduledAt });
+      const { data } = await recordsApi.createMedication({ name: medName, dose: medDose, taken: medTaken });
       setMedications((p) => [data, ...p]);
       setMedName(''); setMedDose(''); setMedTaken(true); setMedScheduledAt(''); setShowForm(false);
     } finally { setSaving(false); }
