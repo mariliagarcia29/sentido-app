@@ -1,0 +1,310 @@
+{
+  "title": "Sentido — Produção",
+  "uid": "sentido-prod",
+  "schemaVersion": 38,
+  "version": 1,
+  "refresh": "30s",
+  "tags": ["sentido", "production"],
+  "time": { "from": "now-3h", "to": "now" },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Requisições por minuto",
+      "type": "timeseries",
+      "gridPos": { "x": 0, "y": 0, "w": 12, "h": 8 },
+      "datasource": { "type": "cloudwatch", "uid": "cloudwatch" },
+      "targets": [
+        {
+          "alias": "Requisições",
+          "dimensions": { "LoadBalancer": "${alb_arn_suffix}" },
+          "expression": "",
+          "matchExact": true,
+          "metricName": "RequestCount",
+          "namespace": "AWS/ApplicationELB",
+          "period": "60",
+          "refId": "A",
+          "statistics": ["Sum"]
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "lineWidth": 2 },
+          "unit": "reqps"
+        }
+      }
+    },
+    {
+      "id": 2,
+      "title": "Latência P50 / P95 / P99",
+      "type": "timeseries",
+      "gridPos": { "x": 12, "y": 0, "w": 12, "h": 8 },
+      "datasource": { "type": "cloudwatch", "uid": "cloudwatch" },
+      "targets": [
+        {
+          "alias": "P50",
+          "dimensions": { "LoadBalancer": "${alb_arn_suffix}" },
+          "metricName": "TargetResponseTime",
+          "namespace": "AWS/ApplicationELB",
+          "period": "60",
+          "refId": "A",
+          "statistics": ["p50"]
+        },
+        {
+          "alias": "P95",
+          "dimensions": { "LoadBalancer": "${alb_arn_suffix}" },
+          "metricName": "TargetResponseTime",
+          "namespace": "AWS/ApplicationELB",
+          "period": "60",
+          "refId": "B",
+          "statistics": ["p95"]
+        },
+        {
+          "alias": "P99",
+          "dimensions": { "LoadBalancer": "${alb_arn_suffix}" },
+          "metricName": "TargetResponseTime",
+          "namespace": "AWS/ApplicationELB",
+          "period": "60",
+          "refId": "C",
+          "statistics": ["p99"]
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "s", "custom": { "lineWidth": 2 } }
+      }
+    },
+    {
+      "id": 3,
+      "title": "Taxa de Erros 5xx (%)",
+      "type": "timeseries",
+      "gridPos": { "x": 0, "y": 8, "w": 8, "h": 7 },
+      "datasource": { "type": "cloudwatch", "uid": "cloudwatch" },
+      "targets": [
+        {
+          "alias": "5xx %",
+          "expression": "100 * errors / MAX([errors, requests])",
+          "refId": "RATE",
+          "id": "rate"
+        },
+        {
+          "alias": "Erros 5xx",
+          "dimensions": { "LoadBalancer": "${alb_arn_suffix}" },
+          "metricName": "HTTPCode_Target_5XX_Count",
+          "namespace": "AWS/ApplicationELB",
+          "period": "60",
+          "refId": "errors",
+          "id": "errors",
+          "hide": true,
+          "statistics": ["Sum"]
+        },
+        {
+          "alias": "Requisições",
+          "dimensions": { "LoadBalancer": "${alb_arn_suffix}" },
+          "metricName": "RequestCount",
+          "namespace": "AWS/ApplicationELB",
+          "period": "60",
+          "refId": "requests",
+          "id": "requests",
+          "hide": true,
+          "statistics": ["Sum"]
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 0.5 },
+              { "color": "red", "value": 1 }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": 4,
+      "title": "ECS — CPU (%)",
+      "type": "gauge",
+      "gridPos": { "x": 8, "y": 8, "w": 8, "h": 7 },
+      "datasource": { "type": "cloudwatch", "uid": "cloudwatch" },
+      "targets": [
+        {
+          "alias": "CPU",
+          "dimensions": {
+            "ClusterName": "${ecs_cluster}",
+            "ServiceName": "${ecs_service}"
+          },
+          "metricName": "CPUUtilization",
+          "namespace": "AWS/ECS",
+          "period": "60",
+          "refId": "A",
+          "statistics": ["Average"]
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0, "max": 100,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green",  "value": null },
+              { "color": "yellow", "value": 70 },
+              { "color": "red",    "value": 85 }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": 5,
+      "title": "RDS — CPU e Conexões",
+      "type": "timeseries",
+      "gridPos": { "x": 16, "y": 8, "w": 8, "h": 7 },
+      "datasource": { "type": "cloudwatch", "uid": "cloudwatch" },
+      "targets": [
+        {
+          "alias": "CPU %",
+          "dimensions": { "DBInstanceIdentifier": "${rds_instance}" },
+          "metricName": "CPUUtilization",
+          "namespace": "AWS/RDS",
+          "period": "60",
+          "refId": "A",
+          "statistics": ["Average"]
+        },
+        {
+          "alias": "Conexões",
+          "dimensions": { "DBInstanceIdentifier": "${rds_instance}" },
+          "metricName": "DatabaseConnections",
+          "namespace": "AWS/RDS",
+          "period": "60",
+          "refId": "B",
+          "statistics": ["Average"]
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "custom": { "lineWidth": 2 } }
+      }
+    },
+    {
+      "id": 6,
+      "title": "Redis — Memória (%)",
+      "type": "gauge",
+      "gridPos": { "x": 0, "y": 15, "w": 8, "h": 6 },
+      "datasource": { "type": "cloudwatch", "uid": "cloudwatch" },
+      "targets": [
+        {
+          "alias": "Memória",
+          "dimensions": { "ReplicationGroupId": "${redis_group}" },
+          "metricName": "DatabaseMemoryUsagePercentage",
+          "namespace": "AWS/ElastiCache",
+          "period": "60",
+          "refId": "A",
+          "statistics": ["Average"]
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0, "max": 100,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green",  "value": null },
+              { "color": "yellow", "value": 70 },
+              { "color": "red",    "value": 85 }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": 7,
+      "title": "Health Check — /api/v1/health",
+      "type": "stat",
+      "gridPos": { "x": 8, "y": 15, "w": 8, "h": 6 },
+      "datasource": { "type": "cloudwatch", "uid": "cloudwatch" },
+      "targets": [
+        {
+          "alias": "Tasks Saudáveis",
+          "dimensions": {
+            "LoadBalancer": "${alb_arn_suffix}",
+            "TargetGroup":  "${tg_arn_suffix}"
+          },
+          "metricName": "HealthyHostCount",
+          "namespace": "AWS/ApplicationELB",
+          "period": "60",
+          "refId": "A",
+          "statistics": ["Minimum"]
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red",   "value": null },
+              { "color": "green", "value": 1 }
+            ]
+          },
+          "mappings": [
+            { "type": "value", "options": { "0": { "text": "DOWN", "color": "red" } } }
+          ]
+        }
+      }
+    },
+    {
+      "id": 8,
+      "title": "Logs de Erro — API (últimas 1h)",
+      "type": "logs",
+      "gridPos": { "x": 0, "y": 21, "w": 24, "h": 8 },
+      "datasource": { "type": "cloudwatch", "uid": "cloudwatch" },
+      "targets": [
+        {
+          "logGroups": [{ "name": "/sentido/api" }],
+          "expression": "fields @timestamp, @message | filter @message like /ERROR/ | sort @timestamp desc | limit 50",
+          "queryMode": "Logs",
+          "refId": "A",
+          "region": "default",
+          "statsGroups": []
+        }
+      ]
+    }
+  ],
+  "templating": {
+    "list": [
+      {
+        "name": "alb_arn_suffix",
+        "type": "constant",
+        "current": { "value": "FILL_FROM_TERRAFORM_OUTPUT" }
+      },
+      {
+        "name": "ecs_cluster",
+        "type": "constant",
+        "current": { "value": "sentido-cluster" }
+      },
+      {
+        "name": "ecs_service",
+        "type": "constant",
+        "current": { "value": "sentido-api-service" }
+      },
+      {
+        "name": "rds_instance",
+        "type": "constant",
+        "current": { "value": "sentido-postgres" }
+      },
+      {
+        "name": "redis_group",
+        "type": "constant",
+        "current": { "value": "sentido-redis" }
+      },
+      {
+        "name": "tg_arn_suffix",
+        "type": "constant",
+        "current": { "value": "FILL_FROM_TERRAFORM_OUTPUT" }
+      }
+    ]
+  }
+}

@@ -1,0 +1,33 @@
+# Dependencies
+node_modules/
+
+# Environment files (secrets)
+.env
+.env.local
+.env.production
+
+# Build outputs
+dist/
+build/
+.expo/
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS
+.DS_Store
+
+# Terraform state (secrets)
+infra/terraform/terraform.tfvars
+infra/terraform/.terraform/
+infra/terraform/*.tfstate
+infra/terraform/*.tfstate.backup
+infra/terraform/.terraform.lock.hcl
+
+# Google service account (secret)
+google-service-account.json
+
+# IDE
+.vscode/
+.idea/

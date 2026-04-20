@@ -1,0 +1,55 @@
+# ============================================================
+# Sentido — Terraform variables example
+# Copie para terraform.tfvars e preencha os valores reais.
+# NUNCA commite terraform.tfvars (está no .gitignore).
+# ============================================================
+
+aws_region  = "sa-east-1"
+environment = "production"
+app_name    = "sentido"
+
+# ── Banco de dados ────────────────────────────────────────────
+db_name     = "sentido"
+db_username = "sentido"
+db_password = "TROQUE_POR_SENHA_FORTE_32_CHARS_MINIMO"
+
+# Chave AES-256 para pgcrypto (gere com: openssl rand -base64 32)
+db_encryption_key = "TROQUE_POR_CHAVE_AES256_BASE64"
+
+# ── Redis ─────────────────────────────────────────────────────
+redis_auth_token = "TROQUE_POR_TOKEN_REDIS_FORTE"
+
+# ── JWT ───────────────────────────────────────────────────────
+# Gere com: openssl rand -base64 64
+jwt_secret = "TROQUE_POR_SECRET_JWT_64_CHARS_MINIMO"
+
+# ── Imagem Docker da API (ECR) ────────────────────────────────
+# Formato: <account>.dkr.ecr.sa-east-1.amazonaws.com/sentido-api:latest
+api_image_uri = "123456789012.dkr.ecr.sa-east-1.amazonaws.com/sentido-api:latest"
+
+# ── ACM Certificate (HTTPS) ───────────────────────────────────
+# ARN do certificado emitido para api.sentido.app e sentido.app
+certificate_arn = "arn:aws:acm:sa-east-1:123456789012:certificate/SUBSTITUA"
+
+# ── CORS ──────────────────────────────────────────────────────
+frontend_origin = "https://sentido.app"
+
+# ── CloudFront ────────────────────────────────────────────────
+cloudfront_price_class = "PriceClass_100"
+
+# ── Web Push (VAPID) ──────────────────────────────────────────
+vapid_email = "mailto:tech@sentido.app"
+
+# ── Daily.co (video) ──────────────────────────────────────────
+daily_domain = "sentido.daily.co"
+
+# ── Fitbit OAuth2 ─────────────────────────────────────────────
+fitbit_redirect_uri = "https://api.sentido.app/api/v1/wearables/fitbit/callback"
+
+# ── Garmin ────────────────────────────────────────────────────
+garmin_auth_url = "https://connect.garmin.com/oauthConfirm"
+
+# ── GitHub Actions OIDC ───────────────────────────────────────
+# Organização ou usuário GitHub dono do repositório
+github_org  = "minha-organizacao"
+github_repo = "app-saude"

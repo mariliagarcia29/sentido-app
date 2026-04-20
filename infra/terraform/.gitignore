@@ -1,0 +1,13 @@
+# Terraform state e planos — nunca commitar
+*.tfstate
+*.tfstate.*
+*.tfplan
+tfplan
+
+# Variáveis com segredos — use terraform.tfvars.example como referência
+terraform.tfvars
+*.auto.tfvars
+
+# Diretório local do Terraform
+.terraform/
+.terraform.lock.hcl
