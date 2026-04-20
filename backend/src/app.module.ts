@@ -64,7 +64,8 @@ import { WearableConnection } from './wearables/entities/wearable-connection.ent
             DeviceToken, UserPreferences, ChatMessage, WearableData, WearableConnection,
           ],
           synchronize: !isProd,
-          ssl: isProd ? { rejectUnauthorized: false } : false,
+          // When DATABASE_URL is set, let the URL control SSL (avoid conflict with sslmode=disable)
+          ...(databaseUrl ? {} : { ssl: isProd ? { rejectUnauthorized: false } : false }),
         };
       },
     }),
