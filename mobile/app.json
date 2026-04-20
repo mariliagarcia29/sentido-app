@@ -1,0 +1,78 @@
+{
+  "expo": {
+    "name": "Sentido",
+    "slug": "sentido",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "scheme": "sentido",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#F4F6FB"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "app.sentido.mobile",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Necessário para teleconsultas por vídeo.",
+        "NSMicrophoneUsageDescription": "Necessário para teleconsultas por vídeo e áudio.",
+        "NSHealthShareUsageDescription": "O Sentido pode ler dados de saúde do Apple Health com sua autorização.",
+        "NSHealthUpdateUsageDescription": "O Sentido pode escrever dados de saúde no Apple Health com sua autorização."
+      }
+    },
+    "android": {
+      "package": "app.sentido.mobile",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#F4F6FB"
+      },
+      "edgeToEdgeEnabled": true,
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "CAMERA",
+        "RECORD_AUDIO",
+        "RECEIVE_BOOT_COMPLETED",
+        "VIBRATE",
+        "android.permission.health.READ_STEPS",
+        "android.permission.health.READ_HEART_RATE",
+        "android.permission.health.READ_SLEEP",
+        "android.permission.health.READ_DISTANCE",
+        "android.permission.health.READ_ACTIVE_CALORIES_BURNED",
+        "android.permission.health.READ_WEIGHT",
+        "android.permission.health.WRITE_STEPS",
+        "android.permission.health.WRITE_HEART_RATE",
+        "android.permission.health.WRITE_SLEEP"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      [
+        "react-native-health",
+        {
+          "isClinicalDataEnabled": false
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/icon.png",
+          "color": "#2D7DD2",
+          "sounds": [],
+          "mode": "production"
+        }
+      ],
+      "expo-localization",
+      "expo-secure-store"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "SUBSTITUA_PELO_ID_DO_PROJETO_EAS"
+      }
+    }
+  }
+}
