@@ -11,7 +11,7 @@ COPY . .
 RUN pnpm run build
 
 # Remove devDependencies after build
-RUN pnpm prune --prod
+RUN CI=true pnpm prune --prod
 
 # ── Stage 2: production ───────────────────────────────────────
 FROM node:20-alpine AS production
