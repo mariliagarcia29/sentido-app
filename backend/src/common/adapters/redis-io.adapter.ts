@@ -1,6 +1,5 @@
 import { INestApplication, Logger } from '@nestjs/common';
 import { IoAdapter } from '@nestjs/platform-socket.io';
-import { ServerOptions } from 'socket.io';
 import { createAdapter } from '@socket.io/redis-adapter';
 import Redis from 'ioredis';
 
@@ -46,7 +45,7 @@ export class RedisIoAdapter extends IoAdapter {
     this.logger.log(`Redis Socket.IO adapter conectado em ${host}:${port}`);
   }
 
-  createIOServer(port: number, options?: ServerOptions): any {
+  createIOServer(port: number, options?: Record<string, unknown>): any {
     const server = super.createIOServer(port, options);
     if (this.adapterConstructor) {
       server.adapter(this.adapterConstructor);

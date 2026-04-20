@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Global, Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { BullModule } from '@nestjs/bull';
 
@@ -9,6 +9,7 @@ import { RemindersService } from './reminders.service';
 import { DeviceToken } from './entities/device-token.entity';
 import { UserPreferences } from '../preferences/entities/user-preferences.entity';
 
+@Global()
 @Module({
   imports: [
     TypeOrmModule.forFeature([DeviceToken, UserPreferences]),
