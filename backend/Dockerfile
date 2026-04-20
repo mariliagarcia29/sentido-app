@@ -1,16 +1,18 @@
 # ── Stage 1: deps ────────────────────────────────────────────
 FROM node:20-alpine AS deps
 WORKDIR /app
-COPY package*.json ./
-RUN npm ci --legacy-peer-deps --omit=dev
+RUN npm install -g pnpm
+COPY package.json pnpm-lock.yaml ./
+RUN pnpm install --frozen-lockfile --prod
 
 # ── Stage 2: build ────────────────────────────────────────────
 FROM node:20-alpine AS builder
 WORKDIR /app
-COPY package*.json ./
-RUN npm ci --legacy-peer-deps
+RUN npm install -g pnpm
+COPY package.json pnpm-lock.yaml ./
+RUN pnpm install --frozen-lockfile
 COPY . .
-RUN npm run build
+RUN pnpm run build
 
 # ── Stage 3: production ───────────────────────────────────────
 FROM node:20-alpine AS production
@@ -18,19 +20,17 @@ WORKDIR /app
 
 ENV NODE_ENV=production
 
-# Usuário não-root para segurança
 RUN addgroup -g 1001 -S nodejs && adduser -S nestjs -u 1001
 
-# Apenas artefatos necessários
 COPY --from=deps    --chown=nestjs:nodejs /app/node_modules ./node_modules
 COPY --from=builder --chown=nestjs:nodejs /app/dist         ./dist
 COPY --from=builder --chown=nestjs:nodejs /app/package.json ./package.json
 
 USER nestjs
 
-EXPOSE 3001
+EXPOSE 8080
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-  CMD wget -qO- http://localhost:3001/api/v1/health || exit 1
+  CMD wget -qO- http://localhost:8080/api/v1/health || exit 1
 
 CMD ["node", "dist/main"]

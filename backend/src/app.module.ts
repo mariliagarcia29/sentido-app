@@ -43,21 +43,30 @@ import { WearableConnection } from './wearables/entities/wearable-connection.ent
 
     TypeOrmModule.forRootAsync({
       inject: [ConfigService],
-      useFactory: (config: ConfigService) => ({
-        type: 'postgres',
-        host: config.get('DB_HOST', 'localhost'),
-        port: config.get<number>('DB_PORT', 5432),
-        database: config.get('DB_NAME', 'sentido'),
-        username: config.get('DB_USER', 'sentido'),
-        password: config.get('DB_PASSWORD', 'sentido_dev'),
-        entities: [
-          User, OauthAccount, TokenBlacklist, MoodEntry, SymptomRecord, MedicationRecord,
-          Appointment, PdfExport, AuditLog, ConsentRecord, ClinicalObservation,
-          DeviceToken, UserPreferences, ChatMessage, WearableData, WearableConnection,
-        ],
-        synchronize: config.get('NODE_ENV') !== 'production',
-        ssl: config.get('NODE_ENV') === 'production' ? { rejectUnauthorized: false } : false,
-      }),
+      useFactory: (config: ConfigService) => {
+        const databaseUrl = config.get('DATABASE_URL');
+        const isProd = config.get('NODE_ENV') === 'production';
+        const base = databaseUrl
+          ? { url: databaseUrl }
+          : {
+              host: config.get('DB_HOST', 'localhost'),
+              port: config.get<number>('DB_PORT', 5432),
+              database: config.get('DB_NAME', 'sentido'),
+              username: config.get('DB_USER', 'sentido'),
+              password: config.get('DB_PASSWORD', 'sentido_dev'),
+            };
+        return {
+          type: 'postgres' as const,
+          ...base,
+          entities: [
+            User, OauthAccount, TokenBlacklist, MoodEntry, SymptomRecord, MedicationRecord,
+            Appointment, PdfExport, AuditLog, ConsentRecord, ClinicalObservation,
+            DeviceToken, UserPreferences, ChatMessage, WearableData, WearableConnection,
+          ],
+          synchronize: !isProd,
+          ssl: isProd ? { rejectUnauthorized: false } : false,
+        };
+      },
     }),
 
     BullModule.forRootAsync({
