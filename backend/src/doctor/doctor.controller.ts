@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Param, Body, Req, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Param, Body, Req, UseGuards } from '@nestjs/common';
 import { Request } from 'express';
 import { DoctorService } from './doctor.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -53,6 +53,16 @@ export class DoctorController {
     @Req() req: Request,
   ) {
     return this.doctor.getPatientMedications(user.id, patientId, req.ip ?? '');
+  }
+
+  @Patch('patients/:patientId/medications/:medicationId/archive')
+  archiveMedication(
+    @CurrentUser() user: User,
+    @Param('patientId') patientId: string,
+    @Param('medicationId') medicationId: string,
+    @Req() req: Request,
+  ) {
+    return this.doctor.archiveMedication(user.id, patientId, medicationId, req.ip ?? '');
   }
 
   @Post('patients/:patientId/medications')

@@ -4,12 +4,12 @@ import { useTranslation } from 'react-i18next';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { doctorApi } from '../../api';
-import type { ClinicalObservation, MedicationRecord, PatientSummary } from '../../types';
+import type { ClinicalObservation, MedicationRecord, PatientSummary, SymptomRecord } from '../../types';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import Badge from '../../components/ui/Badge';
 
-type Tab = 'medications' | 'prontuario';
+type Tab = 'medications' | 'sintomas' | 'prontuario';
 
 function RiskMeter({ score }: { score: number }) {
   const color = score >= 70 ? 'bg-red-500' : score >= 40 ? 'bg-yellow-400' : 'bg-green-400';
@@ -27,11 +27,12 @@ function RiskMeter({ score }: { score: number }) {
 }
 
 function MedicationSection({
-  medications, patientId, onAdd,
+  medications, patientId, onAdd, onArchive,
 }: {
   medications: MedicationRecord[];
   patientId: string;
   onAdd: (m: MedicationRecord) => void;
+  onArchive: (id: string) => void;
 }) {
   const [showForm, setShowForm] = useState(false);
   const [name, setName] = useState('');
@@ -52,11 +53,15 @@ function MedicationSection({
     } finally { setSaving(false); }
   };
 
+  const prescribed = medications.filter((m) => m.prescribedBy);
+  const current = prescribed.filter((m) => !m.archivedAt);
+  const previous = prescribed.filter((m) => !!m.archivedAt);
+
   return (
     <div className="space-y-4">
       <div className="flex justify-end">
         <Button variant="outline" className="text-xs" onClick={() => setShowForm((s) => !s)}>
-          {showForm ? 'Cancelar' : '+ Prescrever medicamento'}
+          {showForm ? 'Cancelar' : '+ Nova prescrição'}
         </Button>
       </div>
 
@@ -85,43 +90,56 @@ function MedicationSection({
         </div>
       )}
 
-      {medications.length === 0 ? (
-        <p className="text-sm text-gray-400">Nenhum medicamento registrado.</p>
-      ) : (
-        <div className="space-y-4">
-          <div>
-            <h3 className="text-sm font-semibold text-gray-600 mb-2">Última prescrição</h3>
-            <div className="rounded-lg border border-indigo-100 bg-indigo-50 p-3 space-y-1">
-              <p className="text-sm font-medium text-gray-800">{medications[0].name}{medications[0].dose ? ` — ${medications[0].dose}` : ''}</p>
-              <div className="flex items-center gap-2">
-                <Badge color={medications[0].taken ? 'green' : 'red'}>{medications[0].taken ? 'Tomado' : 'Não tomado'}</Badge>
-                {medications[0].prescribedBy && <Badge color="blue">Prescrito pelo médico</Badge>}
-                <span className="text-xs text-gray-400">
-                  {format(new Date(medications[0].createdAt), "dd/MM/yyyy", { locale: ptBR })}
-                </span>
-              </div>
-            </div>
-          </div>
+      {prescribed.length === 0 && (
+        <p className="text-sm text-gray-400">Nenhum medicamento prescrito ainda.</p>
+      )}
 
-          {medications.length > 1 && (
-            <div>
-              <h3 className="text-sm font-semibold text-gray-600 mb-2">Histórico de medicamentos</h3>
-              <div className="space-y-2">
-                {medications.slice(1).map((m) => (
-                  <div key={m.id} className="flex items-center justify-between rounded-lg border border-gray-100 p-3">
-                    <div>
-                      <p className="text-sm text-gray-700">{m.name}{m.dose ? ` — ${m.dose}` : ''}</p>
-                      <div className="flex items-center gap-2 mt-1">
-                        <p className="text-xs text-gray-400">{format(new Date(m.createdAt), "dd/MM/yyyy", { locale: ptBR })}</p>
-                        {m.prescribedBy && <Badge color="blue">Médico</Badge>}
-                      </div>
-                    </div>
-                    <Badge color={m.taken ? 'green' : 'red'}>{m.taken ? 'Tomado' : 'Não tomado'}</Badge>
-                  </div>
-                ))}
+      {current.length > 0 && (
+        <div>
+          <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-2">Prescrições atuais</h3>
+          <div className="space-y-2">
+            {current.map((m) => (
+              <div key={m.id} className="rounded-lg border border-indigo-100 bg-indigo-50 p-4 space-y-2">
+                <div className="flex items-start justify-between gap-2">
+                  <p className="text-sm font-semibold text-gray-900">{m.name}{m.dose ? ` — ${m.dose}` : ''}</p>
+                  <button
+                    onClick={async () => {
+                      try {
+                        await doctorApi.archiveMedication(patientId, m.id);
+                        onArchive(m.id);
+                      } catch (e: any) {
+                        alert(e?.response?.data?.message ?? 'Erro ao arquivar prescrição');
+                      }
+                    }}
+                    className="text-xs text-gray-400 hover:text-red-500 whitespace-nowrap"
+                  >
+                    Tornar histórico
+                  </button>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Badge color={m.taken ? 'green' : 'red'}>{m.taken ? 'Tomado' : 'Não tomado pelo paciente'}</Badge>
+                  <span className="text-xs text-gray-400">{format(new Date(m.createdAt), "dd/MM/yyyy", { locale: ptBR })}</span>
+                </div>
               </div>
-            </div>
-          )}
+            ))}
+          </div>
+        </div>
+      )}
+
+      {previous.length > 0 && (
+        <div>
+          <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-2">Prescrições anteriores</h3>
+          <div className="space-y-2">
+            {previous.map((m) => (
+              <div key={m.id} className="flex items-center justify-between rounded-lg border border-gray-100 bg-gray-50 p-3">
+                <div>
+                  <p className="text-sm text-gray-700 font-medium">{m.name}{m.dose ? ` — ${m.dose}` : ''}</p>
+                  <p className="text-xs text-gray-400 mt-0.5">{format(new Date(m.createdAt), "dd/MM/yyyy", { locale: ptBR })}</p>
+                </div>
+                <Badge color={m.taken ? 'green' : 'red'}>{m.taken ? 'Tomado' : 'Não tomado'}</Badge>
+              </div>
+            ))}
+          </div>
         </div>
       )}
     </div>
@@ -137,6 +155,7 @@ function ProntuarioSection({
 }) {
   const { t } = useTranslation();
   const [showForm, setShowForm] = useState(false);
+  const [obsType, setObsType] = useState<'note' | 'diagnosis'>('note');
   const [content, setContent] = useState('');
   const [severity, setSeverity] = useState<'info' | 'warn' | 'critical'>('info');
   const [saving, setSaving] = useState(false);
@@ -149,11 +168,14 @@ function ProntuarioSection({
     if (!content.trim()) return;
     setSaving(true);
     try {
-      const { data } = await doctorApi.createObservation(patientId, { content, severity });
+      const { data } = await doctorApi.createObservation(patientId, { content, severity, observationType: obsType });
       onAdd(data);
-      setContent(''); setSeverity('info'); setShowForm(false);
+      setContent(''); setSeverity('info'); setObsType('note'); setShowForm(false);
     } finally { setSaving(false); }
   };
+
+  const diagnoses = (observations ?? []).filter((o) => o.observationType === 'diagnosis');
+  const notes = (observations ?? []).filter((o) => o.observationType !== 'diagnosis');
 
   return (
     <div className="space-y-4">
@@ -165,24 +187,39 @@ function ProntuarioSection({
 
       {showForm && (
         <div className="space-y-3 rounded-lg border border-gray-200 p-4">
-          <div>
-            <label className="text-sm font-medium text-gray-700">Gravidade</label>
-            <select
-              className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
-              value={severity}
-              onChange={(e) => setSeverity(e.target.value as typeof severity)}
-            >
-              <option value="info">Informação</option>
-              <option value="warn">Atenção</option>
-              <option value="critical">Crítico</option>
-            </select>
+          <div className="flex gap-3">
+            {(['note', 'diagnosis'] as const).map((type) => (
+              <button
+                key={type}
+                onClick={() => setObsType(type)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${obsType === type ? 'bg-indigo-600 text-white border-indigo-600' : 'border-gray-300 text-gray-600 hover:border-indigo-400'}`}
+              >
+                {type === 'note' ? 'Anotação clínica' : 'Diagnóstico'}
+              </button>
+            ))}
           </div>
+          {obsType === 'note' && (
+            <div>
+              <label className="text-sm font-medium text-gray-700">Gravidade</label>
+              <select
+                className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                value={severity}
+                onChange={(e) => setSeverity(e.target.value as typeof severity)}
+              >
+                <option value="info">Informação</option>
+                <option value="warn">Atenção</option>
+                <option value="critical">Crítico</option>
+              </select>
+            </div>
+          )}
           <div>
-            <label className="text-sm font-medium text-gray-700">Anotação clínica</label>
+            <label className="text-sm font-medium text-gray-700">
+              {obsType === 'diagnosis' ? 'Diagnóstico' : 'Anotação clínica'}
+            </label>
             <textarea
               className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm resize-none"
               rows={4}
-              placeholder="Descreva as observações, diagnóstico, conduta..."
+              placeholder={obsType === 'diagnosis' ? 'Descreva o diagnóstico do paciente...' : 'Descreva as observações, conduta...'}
               value={content}
               onChange={(e) => setContent(e.target.value)}
             />
@@ -191,8 +228,25 @@ function ProntuarioSection({
         </div>
       )}
 
+      {diagnoses.length > 0 && (
+        <div className="space-y-2">
+          <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">Diagnósticos</h3>
+          {diagnoses.map((obs) => (
+            <div key={obs.id} className="rounded-lg border border-purple-100 bg-purple-50 p-3">
+              <p className="text-sm text-gray-800 font-medium">{obs.content}</p>
+              <p className="text-xs text-gray-400 mt-1">
+                {format(new Date(obs.createdAt), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+              </p>
+            </div>
+          ))}
+        </div>
+      )}
+
       <div className="space-y-3">
-        {observations.map((obs) => (
+        {diagnoses.length > 0 && notes.length > 0 && (
+          <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">Anotações clínicas</h3>
+        )}
+        {notes.map((obs) => (
           <div key={obs.id} className="flex gap-3 rounded-lg border border-gray-100 p-3">
             <Badge color={severityColor[obs.severity]}>{obs.severity === 'info' ? 'Info' : obs.severity === 'warn' ? 'Atenção' : 'Crítico'}</Badge>
             <div className="flex-1">
@@ -204,7 +258,7 @@ function ProntuarioSection({
             </div>
           </div>
         ))}
-        {observations.length === 0 && (
+        {(observations ?? []).length === 0 && (
           <p className="text-sm text-gray-400">Nenhuma anotação registrada.</p>
         )}
       </div>
@@ -217,18 +271,33 @@ export default function PatientSummaryPage() {
   const { patientId } = useParams<{ patientId: string }>();
   const [summary, setSummary] = useState<PatientSummary | null>(null);
   const [medications, setMedications] = useState<MedicationRecord[]>([]);
+  const [symptoms, setSymptoms] = useState<SymptomRecord[]>([]);
+  const [obsError, setObsError] = useState('');
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<Tab>('medications');
 
   useEffect(() => {
     if (!patientId) return;
+    setLoading(true);
+    setSummary(null);
+    setMedications([]);
     Promise.all([
       doctorApi.getPatientSummary(patientId),
-      doctorApi.listObservations(patientId).catch(() => ({ data: [] as ClinicalObservation[] })),
+      doctorApi.listObservations(patientId).catch((e: any) => {
+        setObsError(e?.response?.data?.message ?? e?.message ?? 'Erro ao carregar prontuário');
+        return { data: [] as ClinicalObservation[] };
+      }),
       doctorApi.listPatientMedications(patientId).catch(() => ({ data: [] as MedicationRecord[] })),
-    ]).then(([summaryRes, obsRes, medsRes]) => {
-      setSummary({ ...summaryRes.data, observations: obsRes.data ?? [] });
-      setMedications(medsRes.data ?? []);
+      doctorApi.listPatientSymptoms(patientId).catch(() => ({ data: [] as SymptomRecord[] })),
+    ]).then(([summaryRes, obsRes, medsRes, sympRes]) => {
+      const obs = Array.isArray(obsRes.data) ? obsRes.data : [];
+      const meds = Array.isArray(medsRes.data) ? medsRes.data : [];
+      const symps = Array.isArray(sympRes.data) ? sympRes.data : [];
+      setSummary({ ...summaryRes.data, observations: obs });
+      setMedications(meds);
+      setSymptoms(symps);
+    }).catch(() => {
+      setSummary(null);
     }).finally(() => setLoading(false));
   }, [patientId]);
 
@@ -238,6 +307,10 @@ export default function PatientSummaryPage() {
 
   const handleAddMed = (med: MedicationRecord) => {
     setMedications((prev) => [med, ...prev]);
+  };
+
+  const handleArchiveMed = (id: string) => {
+    setMedications((prev) => prev.map((m) => m.id === id ? { ...m, archivedAt: new Date().toISOString() } : m));
   };
 
   if (loading) return <p className="text-sm text-gray-400">{t('common.loading')}</p>;
@@ -281,6 +354,7 @@ export default function PatientSummaryPage() {
         <div className="flex gap-6">
           {([
             { key: 'medications', label: 'Medicamentos' },
+            { key: 'sintomas', label: 'Sintomas' },
             { key: 'prontuario', label: 'Prontuário' },
           ] as { key: Tab; label: string }[]).map(({ key, label }) => (
             <button
@@ -299,14 +373,36 @@ export default function PatientSummaryPage() {
       </div>
 
       <Card>
-        {tab === 'medications' ? (
-          <MedicationSection medications={medications} patientId={patientId!} onAdd={handleAddMed} />
-        ) : (
-          <ProntuarioSection
-            observations={summary.observations}
-            patientId={patientId!}
-            onAdd={handleAddObs}
-          />
+        {tab === 'medications' && (
+          <MedicationSection medications={medications} patientId={patientId!} onAdd={handleAddMed} onArchive={handleArchiveMed} />
+        )}
+        {tab === 'sintomas' && (
+          <div className="space-y-3">
+            {symptoms.length === 0 && <p className="text-sm text-gray-400">Nenhum sintoma registrado.</p>}
+            {symptoms.map((s) => {
+              const color = s.severity === 'high' ? 'red' : s.severity === 'medium' ? 'yellow' : 'green';
+              const label = s.severity === 'high' ? 'Grave' : s.severity === 'medium' ? 'Moderado' : 'Leve';
+              return (
+                <div key={s.id} className="flex items-start justify-between rounded-lg border border-gray-100 p-3">
+                  <div>
+                    <p className="text-sm font-medium text-gray-800">{s.symptom}</p>
+                    <p className="text-xs text-gray-400 mt-0.5">{format(new Date(s.createdAt), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}</p>
+                  </div>
+                  <Badge color={color as 'red' | 'yellow' | 'green'}>{label}</Badge>
+                </div>
+              );
+            })}
+          </div>
+        )}
+        {tab === 'prontuario' && (
+          <>
+            {obsError && <p className="text-xs text-red-500 mb-3">{obsError}</p>}
+            <ProntuarioSection
+              observations={summary.observations}
+              patientId={patientId!}
+              onAdd={handleAddObs}
+            />
+          </>
         )}
       </Card>
     </div>

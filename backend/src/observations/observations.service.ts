@@ -29,6 +29,7 @@ export class ObservationsService {
         content: dto.content,
         severity: dto.severity ?? ObservationSeverity.INFO,
         triggeredBy: ObservationTrigger.DOCTOR,
+        observationType: dto.observationType ?? 'note',
       }),
     );
     // Notifica paciente imediatamente

@@ -27,6 +27,9 @@ export class MedicationRecord {
   @Column({ nullable: true })
   prescribedBy: string;
 
+  @Column({ nullable: true, type: 'timestamptz' })
+  archivedAt: Date;
+
   @CreateDateColumn()
   createdAt: Date;
 

@@ -18,7 +18,7 @@ export interface MoodEntry {
 
 export interface SymptomRecord {
   id: string;
-  name: string;
+  symptom: string;
   severity: 'low' | 'medium' | 'high';
   note?: string;
   isPrivate: boolean;
@@ -33,6 +33,7 @@ export interface MedicationRecord {
   scheduledAt: string;
   createdAt: string;
   prescribedBy?: string;
+  archivedAt?: string;
 }
 
 export interface Appointment {
@@ -59,6 +60,7 @@ export interface ClinicalObservation {
   content: string;
   severity: 'info' | 'warn' | 'critical';
   triggeredBy: 'system' | 'doctor';
+  observationType?: string;
   isRead: boolean;
   createdAt: string;
 }

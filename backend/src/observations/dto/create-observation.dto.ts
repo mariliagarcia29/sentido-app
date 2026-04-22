@@ -12,4 +12,8 @@ export class CreateObservationDto {
   @IsEnum(ObservationSeverity)
   @IsOptional()
   severity?: ObservationSeverity;
+
+  @IsString()
+  @IsOptional()
+  observationType?: string;
 }

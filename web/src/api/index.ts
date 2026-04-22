@@ -4,6 +4,7 @@ import type {
   MedicationRecord, MoodEntry, PdfExport, SymptomRecord, PatientSummary, User,
 } from '../types';
 
+
 export interface UserPreferences {
   reminderTime?: string;
   quietHours?: { start: string; end: string };
@@ -64,9 +65,13 @@ export const doctorApi = {
     api.get<PatientSummary>(`/doctor/patients/${patientId}/summary`),
   listPatientMedications: (patientId: string) =>
     api.get<MedicationRecord[]>(`/doctor/patients/${patientId}/medications`),
+  listPatientSymptoms: (patientId: string) =>
+    api.get<SymptomRecord[]>(`/doctor/patients/${patientId}/symptoms`),
   prescribeMedication: (patientId: string, data: { name: string; dose?: string }) =>
     api.post<MedicationRecord>(`/doctor/patients/${patientId}/medications`, data),
-  createObservation: (patientId: string, data: { content: string; severity: string }) =>
+  archiveMedication: (patientId: string, medicationId: string) =>
+    api.patch<MedicationRecord>(`/doctor/patients/${patientId}/medications/${medicationId}/archive`),
+  createObservation: (patientId: string, data: { content: string; severity: string; observationType?: string }) =>
     api.post<ClinicalObservation>(`/observations/${patientId}`, data),
   listObservations: (patientId: string) =>
     api.get<ClinicalObservation[]>(`/observations/${patientId}`),

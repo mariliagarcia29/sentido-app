@@ -42,6 +42,9 @@ export class ClinicalObservation {
   @Column('text')
   content: string;
 
+  @Column({ nullable: true })
+  observationType: string; // 'note' | 'diagnosis'
+
   @Column({ default: false })
   isRead: boolean;
 
