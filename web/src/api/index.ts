@@ -61,10 +61,16 @@ export const doctorApi = {
   listPatients: () => api.get<User[]>('/doctor/patients'),
   getPatientSummary: (patientId: string) =>
     api.get<PatientSummary>(`/doctor/patients/${patientId}/summary`),
+  listPatientMedications: (patientId: string) =>
+    api.get<MedicationRecord[]>(`/doctor/patients/${patientId}/medications`),
+  prescribeMedication: (patientId: string, data: { name: string; dose?: string }) =>
+    api.post<MedicationRecord>(`/doctor/patients/${patientId}/medications`, data),
   createObservation: (patientId: string, data: { content: string; severity: string }) =>
     api.post<ClinicalObservation>(`/observations/${patientId}`, data),
   listObservations: (patientId: string) =>
     api.get<ClinicalObservation[]>(`/observations/${patientId}`),
+  invitePatient: (patientEmail: string) =>
+    consentApi.invite(patientEmail),
 };
 
 // Consent

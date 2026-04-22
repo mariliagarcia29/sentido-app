@@ -1,4 +1,4 @@
-import { Controller, Get, Param, Req, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Param, Body, Req, UseGuards } from '@nestjs/common';
 import { Request } from 'express';
 import { DoctorService } from './doctor.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -6,6 +6,7 @@ import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { User, UserRole } from '../users/entities/user.entity';
+import { CreateMedicationDto } from '../records/dto/create-medication.dto';
 
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles(UserRole.DOCTOR)
@@ -52,5 +53,15 @@ export class DoctorController {
     @Req() req: Request,
   ) {
     return this.doctor.getPatientMedications(user.id, patientId, req.ip ?? '');
+  }
+
+  @Post('patients/:patientId/medications')
+  prescribeMedication(
+    @CurrentUser() user: User,
+    @Param('patientId') patientId: string,
+    @Body() dto: CreateMedicationDto,
+    @Req() req: Request,
+  ) {
+    return this.doctor.prescribeMedication(user.id, patientId, dto, req.ip ?? '');
   }
 }

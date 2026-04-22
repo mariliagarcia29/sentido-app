@@ -24,6 +24,9 @@ export class MedicationRecord {
   @Column({ default: false })
   taken: boolean;
 
+  @Column({ nullable: true })
+  prescribedBy: string;
+
   @CreateDateColumn()
   createdAt: Date;
 

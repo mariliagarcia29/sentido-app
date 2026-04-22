@@ -4,10 +4,12 @@ import { useTranslation } from 'react-i18next';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { doctorApi } from '../../api';
-import type { ClinicalObservation, PatientSummary } from '../../types';
+import type { ClinicalObservation, MedicationRecord, PatientSummary } from '../../types';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import Badge from '../../components/ui/Badge';
+
+type Tab = 'medications' | 'prontuario';
 
 function RiskMeter({ score }: { score: number }) {
   const color = score >= 70 ? 'bg-red-500' : score >= 40 ? 'bg-yellow-400' : 'bg-green-400';
@@ -24,35 +26,218 @@ function RiskMeter({ score }: { score: number }) {
   );
 }
 
-export default function PatientSummaryPage() {
+function MedicationSection({
+  medications, patientId, onAdd,
+}: {
+  medications: MedicationRecord[];
+  patientId: string;
+  onAdd: (m: MedicationRecord) => void;
+}) {
+  const [showForm, setShowForm] = useState(false);
+  const [name, setName] = useState('');
+  const [dose, setDose] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+
+  const save = async () => {
+    if (!name.trim()) return;
+    setSaving(true);
+    setError('');
+    try {
+      const { data } = await doctorApi.prescribeMedication(patientId, { name: name.trim(), dose: dose.trim() || undefined });
+      onAdd(data);
+      setName(''); setDose(''); setShowForm(false);
+    } catch (err: any) {
+      setError(err?.response?.data?.message ?? 'Erro ao salvar prescrição. Tente novamente.');
+    } finally { setSaving(false); }
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex justify-end">
+        <Button variant="outline" className="text-xs" onClick={() => setShowForm((s) => !s)}>
+          {showForm ? 'Cancelar' : '+ Prescrever medicamento'}
+        </Button>
+      </div>
+
+      {showForm && (
+        <div className="space-y-3 rounded-lg border border-gray-200 p-4">
+          <div>
+            <label className="text-sm font-medium text-gray-700">Nome do medicamento</label>
+            <input
+              className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+              placeholder="Ex: Fluoxetina"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+            />
+          </div>
+          <div>
+            <label className="text-sm font-medium text-gray-700">Dose / Posologia</label>
+            <input
+              className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+              placeholder="Ex: 20mg — 1x ao dia"
+              value={dose}
+              onChange={(e) => setDose(e.target.value)}
+            />
+          </div>
+          {error && <p className="text-sm text-red-500">{error}</p>}
+          <Button onClick={save} loading={saving}>Salvar prescrição</Button>
+        </div>
+      )}
+
+      {medications.length === 0 ? (
+        <p className="text-sm text-gray-400">Nenhum medicamento registrado.</p>
+      ) : (
+        <div className="space-y-4">
+          <div>
+            <h3 className="text-sm font-semibold text-gray-600 mb-2">Última prescrição</h3>
+            <div className="rounded-lg border border-indigo-100 bg-indigo-50 p-3 space-y-1">
+              <p className="text-sm font-medium text-gray-800">{medications[0].name}{medications[0].dose ? ` — ${medications[0].dose}` : ''}</p>
+              <div className="flex items-center gap-2">
+                <Badge color={medications[0].taken ? 'green' : 'red'}>{medications[0].taken ? 'Tomado' : 'Não tomado'}</Badge>
+                {medications[0].prescribedBy && <Badge color="blue">Prescrito pelo médico</Badge>}
+                <span className="text-xs text-gray-400">
+                  {format(new Date(medications[0].createdAt), "dd/MM/yyyy", { locale: ptBR })}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {medications.length > 1 && (
+            <div>
+              <h3 className="text-sm font-semibold text-gray-600 mb-2">Histórico de medicamentos</h3>
+              <div className="space-y-2">
+                {medications.slice(1).map((m) => (
+                  <div key={m.id} className="flex items-center justify-between rounded-lg border border-gray-100 p-3">
+                    <div>
+                      <p className="text-sm text-gray-700">{m.name}{m.dose ? ` — ${m.dose}` : ''}</p>
+                      <div className="flex items-center gap-2 mt-1">
+                        <p className="text-xs text-gray-400">{format(new Date(m.createdAt), "dd/MM/yyyy", { locale: ptBR })}</p>
+                        {m.prescribedBy && <Badge color="blue">Médico</Badge>}
+                      </div>
+                    </div>
+                    <Badge color={m.taken ? 'green' : 'red'}>{m.taken ? 'Tomado' : 'Não tomado'}</Badge>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ProntuarioSection({
+  observations, patientId, onAdd,
+}: {
+  observations: ClinicalObservation[];
+  patientId: string;
+  onAdd: (obs: ClinicalObservation) => void;
+}) {
   const { t } = useTranslation();
-  const { patientId } = useParams<{ patientId: string }>();
-  const [summary, setSummary] = useState<PatientSummary | null>(null);
-  const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [content, setContent] = useState('');
   const [severity, setSeverity] = useState<'info' | 'warn' | 'critical'>('info');
   const [saving, setSaving] = useState(false);
 
-  useEffect(() => {
-    if (!patientId) return;
-    doctorApi.getPatientSummary(patientId)
-      .then((r) => setSummary(r.data))
-      .finally(() => setLoading(false));
-  }, [patientId]);
+  const severityColor: Record<string, 'blue' | 'yellow' | 'red'> = {
+    info: 'blue', warn: 'yellow', critical: 'red',
+  };
 
-  const saveObservation = async () => {
-    if (!patientId || !content.trim()) return;
+  const save = async () => {
+    if (!content.trim()) return;
     setSaving(true);
     try {
       const { data } = await doctorApi.createObservation(patientId, { content, severity });
-      setSummary((prev) => prev ? { ...prev, observations: [data, ...prev.observations] } : prev);
+      onAdd(data);
       setContent(''); setSeverity('info'); setShowForm(false);
     } finally { setSaving(false); }
   };
 
-  const severityColor: Record<string, 'blue' | 'yellow' | 'red'> = {
-    info: 'blue', warn: 'yellow', critical: 'red',
+  return (
+    <div className="space-y-4">
+      <div className="flex justify-end">
+        <Button variant="outline" className="text-xs" onClick={() => setShowForm((s) => !s)}>
+          {showForm ? t('common.cancel') : '+ Nova anotação'}
+        </Button>
+      </div>
+
+      {showForm && (
+        <div className="space-y-3 rounded-lg border border-gray-200 p-4">
+          <div>
+            <label className="text-sm font-medium text-gray-700">Gravidade</label>
+            <select
+              className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+              value={severity}
+              onChange={(e) => setSeverity(e.target.value as typeof severity)}
+            >
+              <option value="info">Informação</option>
+              <option value="warn">Atenção</option>
+              <option value="critical">Crítico</option>
+            </select>
+          </div>
+          <div>
+            <label className="text-sm font-medium text-gray-700">Anotação clínica</label>
+            <textarea
+              className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm resize-none"
+              rows={4}
+              placeholder="Descreva as observações, diagnóstico, conduta..."
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
+            />
+          </div>
+          <Button onClick={save} loading={saving}>{t('common.save')}</Button>
+        </div>
+      )}
+
+      <div className="space-y-3">
+        {observations.map((obs) => (
+          <div key={obs.id} className="flex gap-3 rounded-lg border border-gray-100 p-3">
+            <Badge color={severityColor[obs.severity]}>{obs.severity === 'info' ? 'Info' : obs.severity === 'warn' ? 'Atenção' : 'Crítico'}</Badge>
+            <div className="flex-1">
+              <p className="text-sm text-gray-700">{obs.content}</p>
+              <p className="text-xs text-gray-400 mt-1">
+                {format(new Date(obs.createdAt), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                {' · '}{obs.triggeredBy === 'doctor' ? 'Médico' : 'Sistema'}
+              </p>
+            </div>
+          </div>
+        ))}
+        {observations.length === 0 && (
+          <p className="text-sm text-gray-400">Nenhuma anotação registrada.</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+export default function PatientSummaryPage() {
+  const { t } = useTranslation();
+  const { patientId } = useParams<{ patientId: string }>();
+  const [summary, setSummary] = useState<PatientSummary | null>(null);
+  const [medications, setMedications] = useState<MedicationRecord[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [tab, setTab] = useState<Tab>('medications');
+
+  useEffect(() => {
+    if (!patientId) return;
+    Promise.all([
+      doctorApi.getPatientSummary(patientId),
+      doctorApi.listObservations(patientId).catch(() => ({ data: [] as ClinicalObservation[] })),
+      doctorApi.listPatientMedications(patientId).catch(() => ({ data: [] as MedicationRecord[] })),
+    ]).then(([summaryRes, obsRes, medsRes]) => {
+      setSummary({ ...summaryRes.data, observations: obsRes.data ?? [] });
+      setMedications(medsRes.data ?? []);
+    }).finally(() => setLoading(false));
+  }, [patientId]);
+
+  const handleAddObs = (obs: ClinicalObservation) => {
+    setSummary((prev) => prev ? { ...prev, observations: [obs, ...prev.observations] } : prev);
+  };
+
+  const handleAddMed = (med: MedicationRecord) => {
+    setMedications((prev) => [med, ...prev]);
   };
 
   if (loading) return <p className="text-sm text-gray-400">{t('common.loading')}</p>;
@@ -60,96 +245,70 @@ export default function PatientSummaryPage() {
 
   return (
     <div className="space-y-6 max-w-3xl">
-      <div className="flex items-center gap-3">
-        <Link to="/doctor/patients" className="text-sm text-indigo-600 hover:underline">← {t('doctor.patients')}</Link>
-      </div>
+      <Link to="/doctor/patients" className="text-sm text-indigo-600 hover:underline">
+        ← Meus pacientes
+      </Link>
 
       <div>
         <h1 className="text-2xl font-bold text-gray-900">{summary.patient.fullName}</h1>
         <p className="text-sm text-gray-400">{summary.patient.email}</p>
       </div>
 
-      {/* Risk metrics */}
+      {/* Métricas */}
       <div className="grid gap-4 sm:grid-cols-3">
         <Card className="text-center">
-          <p className="text-xs text-gray-500 mb-1">{t('doctor.avgMood')}</p>
-          <p className="text-3xl font-bold text-indigo-600">{summary.avgMood.toFixed(1)}</p>
+          <p className="text-xs text-gray-500 mb-1">Humor médio</p>
+          <p className="text-3xl font-bold text-indigo-600">{(summary.avgMood ?? 0).toFixed(1)}</p>
           <p className="text-xs text-gray-400">/ 5</p>
         </Card>
         <Card className="text-center">
-          <p className="text-xs text-gray-500 mb-1">{t('doctor.missedMeds')}</p>
+          <p className="text-xs text-gray-500 mb-1">Medicações perdidas</p>
           <p className={`text-3xl font-bold ${summary.missedMeds >= 3 ? 'text-red-500' : 'text-gray-700'}`}>{summary.missedMeds}</p>
         </Card>
         <Card className="text-center">
-          <p className="text-xs text-gray-500 mb-1">{t('doctor.criticalSymptoms')}</p>
+          <p className="text-xs text-gray-500 mb-1">Sintomas críticos</p>
           <p className={`text-3xl font-bold ${summary.criticalSymptoms >= 2 ? 'text-red-500' : 'text-gray-700'}`}>{summary.criticalSymptoms}</p>
         </Card>
       </div>
 
       <Card>
-        <p className="text-sm font-semibold text-gray-700 mb-3">{t('doctor.riskScore')}</p>
+        <p className="text-sm font-semibold text-gray-700 mb-3">Índice de risco</p>
         <RiskMeter score={summary.riskScore} />
       </Card>
 
-      {/* Observations */}
-      <Card className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-base font-semibold text-gray-700">{t('nav.observations')}</h2>
-          <Button variant="outline" className="text-xs" onClick={() => setShowForm((s) => !s)}>
-            {showForm ? t('common.cancel') : '+ ' + t('doctor.addObservation')}
-          </Button>
-        </div>
-
-        {showForm && (
-          <div className="space-y-3 rounded-lg border border-gray-200 p-4">
-            <div>
-              <label className="text-sm font-medium text-gray-700">{t('doctor.severity')}</label>
-              <select
-                className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
-                value={severity}
-                onChange={(e) => setSeverity(e.target.value as typeof severity)}
-              >
-                <option value="info">{t('doctor.info')}</option>
-                <option value="warn">{t('doctor.warn')}</option>
-                <option value="critical">{t('doctor.critical')}</option>
-              </select>
-            </div>
-            <div>
-              <label className="text-sm font-medium text-gray-700">{t('doctor.observationContent')}</label>
-              <textarea
-                className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm resize-none"
-                rows={3}
-                value={content}
-                onChange={(e) => setContent(e.target.value)}
-              />
-            </div>
-            <Button onClick={saveObservation} loading={saving}>{t('common.save')}</Button>
-          </div>
-        )}
-
-        <div className="space-y-3">
-          {summary.observations.map((obs) => (
-            <ObservationCard key={obs.id} obs={obs} color={severityColor[obs.severity]} t={t} />
+      {/* Abas */}
+      <div className="border-b border-gray-200">
+        <div className="flex gap-6">
+          {([
+            { key: 'medications', label: 'Medicamentos' },
+            { key: 'prontuario', label: 'Prontuário' },
+          ] as { key: Tab; label: string }[]).map(({ key, label }) => (
+            <button
+              key={key}
+              onClick={() => setTab(key)}
+              className={`pb-3 text-sm font-medium border-b-2 transition-colors ${
+                tab === key
+                  ? 'border-indigo-600 text-indigo-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              {label}
+            </button>
           ))}
-          {summary.observations.length === 0 && (
-            <p className="text-sm text-gray-400">{t('common.noData')}</p>
-          )}
         </div>
-      </Card>
-    </div>
-  );
-}
-
-function ObservationCard({ obs, color, t }: { obs: ClinicalObservation; color: 'blue' | 'yellow' | 'red'; t: (k: string) => string }) {
-  return (
-    <div className="flex gap-3 rounded-lg border border-gray-100 p-3">
-      <Badge color={color}>{t(`doctor.${obs.severity}`)}</Badge>
-      <div className="flex-1">
-        <p className="text-sm text-gray-700">{obs.content}</p>
-        <p className="text-xs text-gray-400 mt-1">
-          {format(new Date(obs.createdAt), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })} · {obs.triggeredBy === 'doctor' ? 'Médico' : 'Sistema'}
-        </p>
       </div>
+
+      <Card>
+        {tab === 'medications' ? (
+          <MedicationSection medications={medications} patientId={patientId!} onAdd={handleAddMed} />
+        ) : (
+          <ProntuarioSection
+            observations={summary.observations}
+            patientId={patientId!}
+            onAdd={handleAddObs}
+          />
+        )}
+      </Card>
     </div>
   );
 }

@@ -32,6 +32,7 @@ export interface MedicationRecord {
   taken: boolean;
   scheduledAt: string;
   createdAt: string;
+  prescribedBy?: string;
 }
 
 export interface Appointment {
@@ -69,6 +70,7 @@ export interface PatientSummary {
   criticalSymptoms: number;
   riskScore: number;
   observations: ClinicalObservation[];
+  medications: MedicationRecord[];
 }
 
 export interface ConsentRecord {

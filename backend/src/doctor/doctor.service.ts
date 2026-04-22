@@ -57,6 +57,25 @@ export class DoctorService {
     });
   }
 
+  // Médico prescreve medicamento para paciente
+  async prescribeMedication(
+    doctorId: string,
+    patientId: string,
+    data: { name: string; dose?: string },
+    ip: string,
+  ) {
+    await this.consent.assertConsent(doctorId, patientId);
+    await this.log(doctorId, 'PRESCRIBE_MEDICATION', patientId, ip);
+    const record = this.medications.create({
+      userId: patientId,
+      prescribedBy: doctorId,
+      name: data.name,
+      dose: data.dose,
+      taken: false,
+    });
+    return this.medications.save(record);
+  }
+
   // Sumário clínico do paciente (últimos 7 dias)
   async getPatientSummary(doctorId: string, patientId: string, ip: string) {
     const consentRecord = await this.consent.assertConsent(doctorId, patientId);
