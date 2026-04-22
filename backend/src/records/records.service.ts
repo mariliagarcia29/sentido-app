@@ -75,6 +75,15 @@ export class RecordsService {
     this.log(userId, 'DELETE_SYMPTOM', `symptom_records:${id}`, ip);
   }
 
+  async markMedicationTaken(id: string, userId: string, ip = '') {
+    const entry = await this.medications.findOne({ where: { id } });
+    if (!entry) throw new NotFoundException('Registro não encontrado');
+    if (entry.userId !== userId) throw new ForbiddenException();
+    await this.medications.update(id, { taken: true });
+    this.log(userId, 'MARK_MEDICATION_TAKEN', `medication_records:${id}`, ip);
+    return { ...entry, taken: true };
+  }
+
   async deleteMedication(id: string, userId: string, ip = '') {
     const entry = await this.medications.findOne({ where: { id } });
     if (!entry) throw new NotFoundException('Registro não encontrado');

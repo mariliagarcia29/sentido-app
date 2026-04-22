@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Delete, Param, Body, Req, UseGuards, HttpCode, HttpStatus } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Delete, Param, Body, Req, UseGuards, HttpCode, HttpStatus } from '@nestjs/common';
 import { Request } from 'express';
 import { RecordsService } from './records.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -53,6 +53,11 @@ export class RecordsController {
   @HttpCode(HttpStatus.NO_CONTENT)
   deleteSymptom(@Param('id') id: string, @CurrentUser() user: User, @Req() req: Request) {
     return this.records.deleteSymptom(id, user.id, req.ip ?? '');
+  }
+
+  @Patch('medications/:id/taken')
+  markMedicationTaken(@Param('id') id: string, @CurrentUser() user: User, @Req() req: Request) {
+    return this.records.markMedicationTaken(id, user.id, req.ip ?? '');
   }
 
   @Delete('medications/:id')

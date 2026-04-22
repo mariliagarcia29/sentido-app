@@ -37,6 +37,7 @@ export const recordsApi = {
   listMedications: () => api.get<MedicationRecord[]>('/records/medications'),
   createMedication: (data: { name: string; dose?: string; taken: boolean }) =>
     api.post<MedicationRecord>('/records/medications', data),
+  markMedicationTaken: (id: string) => api.patch<MedicationRecord>(`/records/medications/${id}/taken`),
   deleteMedication: (id: string) => api.delete(`/records/medications/${id}`),
 };
 

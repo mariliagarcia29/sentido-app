@@ -199,12 +199,31 @@ export default function RecordsPage() {
       {tab === 'medications' && (
         <div className="space-y-2">
           {medications.map((m) => (
-            <Card key={m.id} className="flex items-center justify-between py-3">
-              <div>
-                <p className="text-sm font-medium text-gray-800">{m.name} {m.dose && `— ${m.dose}`}</p>
-                {m.scheduledAt && <p className="text-xs text-gray-400">{format(new Date(m.scheduledAt), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}</p>}
+            <Card key={m.id} className="py-3">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <p className="text-sm font-medium text-gray-800">{m.name}{m.dose && ` — ${m.dose}`}</p>
+                    {m.prescribedBy && <Badge color="blue">Prescrito pelo médico</Badge>}
+                  </div>
+                  {m.scheduledAt && <p className="text-xs text-gray-400 mt-0.5">{format(new Date(m.scheduledAt), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}</p>}
+                  <p className="text-xs text-gray-400 mt-0.5">{format(new Date(m.createdAt), "dd/MM/yyyy", { locale: ptBR })}</p>
+                </div>
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  {!m.taken && (
+                    <button
+                      onClick={async () => {
+                        const { data } = await recordsApi.markMedicationTaken(m.id);
+                        setMedications((prev) => prev.map((x) => x.id === m.id ? data : x));
+                      }}
+                      className="text-xs text-indigo-600 hover:underline font-medium"
+                    >
+                      Marcar como tomado
+                    </button>
+                  )}
+                  <Badge color={m.taken ? 'green' : 'red'}>{m.taken ? t('records.taken') : t('records.notTaken')}</Badge>
+                </div>
               </div>
-              <Badge color={m.taken ? 'green' : 'red'}>{m.taken ? t('records.taken') : t('records.notTaken')}</Badge>
             </Card>
           ))}
           {medications.length === 0 && <p className="text-sm text-gray-400 text-center py-8">{t('common.noData')}</p>}
