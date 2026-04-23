@@ -139,6 +139,37 @@ export const wearablesApi = {
   getFitbitConnectUrl: () => `${api.defaults.baseURL}/wearables/fitbit/connect`,
 };
 
+// Availability slots
+export interface AvailabilitySlot {
+  id: string;
+  doctorId: string;
+  date: string;
+  startTime: string;
+  endTime: string;
+  isBooked: boolean;
+  appointmentId?: string;
+  createdAt: string;
+}
+
+export const availabilityApi = {
+  // Doctor
+  getMySlots: () => api.get<AvailabilitySlot[]>('/availability/mine'),
+  createSlot: (data: { date: string; startTime: string; endTime: string }) =>
+    api.post<AvailabilitySlot>('/availability', data),
+  deleteSlot: (id: string) => api.delete(`/availability/${id}`),
+  // Patient
+  getDoctorSlots: (doctorId: string) =>
+    api.get<AvailabilitySlot[]>(`/availability/doctor/${doctorId}`),
+  bookSlot: (slotId: string) =>
+    api.post<{ slot: AvailabilitySlot; appointment: any }>(`/availability/${slotId}/book`),
+  // CSV export
+  downloadCsv: (from: string, to: string, includes: string[]) =>
+    api.get('/export/csv', {
+      params: { from, to, includes: includes.join(',') },
+      responseType: 'blob',
+    }),
+};
+
 // Telemedicina
 export const telemedicineApi = {
   getOrCreateRoom: (appointmentId: string) =>

@@ -19,6 +19,8 @@ import { PreferencesModule } from './preferences/preferences.module';
 import { ChatModule } from './chat/chat.module';
 import { TelemedicineModule } from './telemedicine/telemedicine.module';
 import { WearablesModule } from './wearables/wearables.module';
+import { AvailabilityModule } from './availability/availability.module';
+import { AvailabilitySlot } from './availability/entities/availability-slot.entity';
 
 import { User } from './users/entities/user.entity';
 import { OauthAccount } from './auth/entities/oauth-account.entity';
@@ -62,8 +64,9 @@ import { WearableConnection } from './wearables/entities/wearable-connection.ent
             User, OauthAccount, TokenBlacklist, MoodEntry, SymptomRecord, MedicationRecord,
             Appointment, PdfExport, AuditLog, ConsentRecord, ClinicalObservation,
             DeviceToken, UserPreferences, ChatMessage, WearableData, WearableConnection,
+            AvailabilitySlot,
           ],
-          synchronize: !isProd,
+          synchronize: !isProd || config.get('DB_SYNCHRONIZE') === 'true',
           // When DATABASE_URL is set, let the URL control SSL (avoid conflict with sslmode=disable)
           ...(databaseUrl ? {} : { ssl: isProd ? { rejectUnauthorized: false } : false }),
         };
@@ -99,6 +102,7 @@ import { WearableConnection } from './wearables/entities/wearable-connection.ent
     ChatModule,
     TelemedicineModule,
     WearablesModule,
+    AvailabilityModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },

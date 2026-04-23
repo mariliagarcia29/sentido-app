@@ -16,6 +16,13 @@ import ConsentManagePage from './pages/patient/ConsentManagePage';
 import PatientsPage from './pages/doctor/PatientsPage';
 import PatientSummaryPage from './pages/doctor/PatientSummaryPage';
 import DoctorConsentPage from './pages/doctor/ConsentPage';
+import AgendaPage from './pages/doctor/AgendaPage';
+
+export function RoleRedirect() {
+  const { user } = useAuth();
+  if (user?.role === 'doctor') return <Navigate to="/doctor/patients" replace />;
+  return <Navigate to="/dashboard" replace />;
+}
 
 export function RequireAuth() {
   const { user, isLoading } = useAuth();
@@ -30,6 +37,12 @@ export function RequireDoctor() {
   return <Outlet />;
 }
 
+export function RequirePatient() {
+  const { user } = useAuth();
+  if (user?.role === 'doctor') return <Navigate to="/doctor/patients" replace />;
+  return <Outlet />;
+}
+
 export const router = createBrowserRouter([
   { path: '/login', element: <LoginPage /> },
   { path: '/register', element: <RegisterPage /> },
@@ -39,8 +52,11 @@ export const router = createBrowserRouter([
       {
         element: <AppLayout />,
         children: [
-          { path: '/', element: <Navigate to="/dashboard" replace /> },
-          { path: '/dashboard', element: <DashboardPage /> },
+          { path: '/', element: <RoleRedirect /> },
+          {
+            element: <RequirePatient />,
+            children: [{ path: '/dashboard', element: <DashboardPage /> }],
+          },
           { path: '/records', element: <RecordsPage /> },
           { path: '/appointments', element: <AppointmentsPage /> },
           { path: '/observations', element: <ObservationsPage /> },
@@ -56,6 +72,7 @@ export const router = createBrowserRouter([
               { path: '/doctor/patients', element: <PatientsPage /> },
               { path: '/doctor/patients/:patientId', element: <PatientSummaryPage /> },
               { path: '/doctor/consent', element: <DoctorConsentPage /> },
+              { path: '/doctor/agenda', element: <AgendaPage /> },
             ],
           },
         ],

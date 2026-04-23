@@ -11,11 +11,13 @@ const patientNav: NavItem[] = [
   { to: '/observations', label: 'nav.observations', icon: '🔔' },
   { to: '/wearables', label: 'nav.wearables', icon: '⌚' },
   { to: '/export', label: 'nav.export', icon: '📄' },
+  { to: '/consent', label: 'nav.consent', icon: '🔐' },
   { to: '/settings', label: 'nav.settings', icon: '⚙️' },
 ];
 
 const doctorNav: NavItem[] = [
   { to: '/doctor/patients', label: 'nav.patients', icon: '👥' },
+  { to: '/doctor/agenda', label: 'nav.agenda', icon: '🗓' },
   { to: '/doctor/observations', label: 'nav.observations', icon: '🔬' },
   { to: '/settings', label: 'nav.settings', icon: '⚙️' },
 ];

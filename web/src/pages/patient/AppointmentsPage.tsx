@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { format } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Link } from 'react-router-dom';
-import { appointmentsApi, consentApi } from '../../api';
+import { appointmentsApi, consentApi, availabilityApi, type AvailabilitySlot } from '../../api';
 import type { Appointment, ConsentRecord } from '../../types';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
@@ -14,11 +14,15 @@ export default function AppointmentsPage() {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [tab, setTab] = useState<'upcoming' | 'past'>('upcoming');
   const [cancelling, setCancelling] = useState<string | null>(null);
+
+  // Booking flow
   const [showForm, setShowForm] = useState(false);
+  const [step, setStep] = useState<'doctor' | 'slots'>('doctor');
   const [linkedDoctors, setLinkedDoctors] = useState<ConsentRecord[]>([]);
-  const [doctorId, setDoctorId] = useState('');
-  const [scheduledAt, setScheduledAt] = useState('');
-  const [booking, setBooking] = useState(false);
+  const [selectedDoctor, setSelectedDoctor] = useState<ConsentRecord | null>(null);
+  const [availableSlots, setAvailableSlots] = useState<AvailabilitySlot[]>([]);
+  const [loadingSlots, setLoadingSlots] = useState(false);
+  const [booking, setBooking] = useState<string | null>(null);
 
   useEffect(() => {
     appointmentsApi.list().then((r) => setAppointments(r.data));
@@ -39,14 +43,35 @@ export default function AppointmentsPage() {
     } finally { setCancelling(null); }
   };
 
-  const handleBook = async () => {
-    if (!doctorId || !scheduledAt) return;
-    setBooking(true);
+  const handleSelectDoctor = async (consent: ConsentRecord) => {
+    setSelectedDoctor(consent);
+    setStep('slots');
+    setLoadingSlots(true);
     try {
-      const { data } = await appointmentsApi.create(doctorId, new Date(scheduledAt).toISOString());
-      setAppointments((prev) => [data, ...prev]);
-      setDoctorId(''); setScheduledAt(''); setShowForm(false);
-    } finally { setBooking(false); }
+      const { data } = await availabilityApi.getDoctorSlots(consent.doctorId);
+      setAvailableSlots(data);
+    } finally { setLoadingSlots(false); }
+  };
+
+  const handleBookSlot = async (slot: AvailabilitySlot) => {
+    setBooking(slot.id);
+    try {
+      const { data } = await availabilityApi.bookSlot(slot.id);
+      setAppointments((prev) => [data.appointment, ...prev]);
+      setShowForm(false);
+      setStep('doctor');
+      setSelectedDoctor(null);
+      setAvailableSlots([]);
+    } catch (e: any) {
+      alert(e?.response?.data?.message ?? 'Erro ao agendar');
+    } finally { setBooking(null); }
+  };
+
+  const resetForm = () => {
+    setShowForm(false);
+    setStep('doctor');
+    setSelectedDoctor(null);
+    setAvailableSlots([]);
   };
 
   const statusColor: Record<string, 'yellow' | 'green' | 'red'> = {
@@ -57,45 +82,70 @@ export default function AppointmentsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-900">{t('appointments.title')}</h1>
-        <Button onClick={() => setShowForm((s) => !s)}>
+        <Button onClick={() => (showForm ? resetForm() : setShowForm(true))}>
           {showForm ? t('common.cancel') : '+ ' + t('appointments.book')}
         </Button>
       </div>
 
       {showForm && (
         <Card className="space-y-4">
-          <p className="text-sm font-semibold text-gray-700">{t('appointments.book')}</p>
-          <div>
-            <label className="text-sm font-medium text-gray-700 block mb-1">{t('appointments.doctor')}</label>
-            <select
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
-              value={doctorId}
-              onChange={(e) => setDoctorId(e.target.value)}
-            >
-              <option value="">Selecione um médico…</option>
-              {linkedDoctors.map((c) => (
-                <option key={c.doctorId} value={c.doctorId}>
-                  {(c as any).doctor?.fullName ?? c.doctorId}
-                </option>
-              ))}
-            </select>
-            {linkedDoctors.length === 0 && (
-              <p className="mt-1 text-xs text-gray-400">Você não tem médicos vinculados. Solicite um vínculo em Configurações.</p>
-            )}
-          </div>
-          <div>
-            <label className="text-sm font-medium text-gray-700 block mb-1">{t('appointments.scheduledAt')}</label>
-            <input
-              type="datetime-local"
-              value={scheduledAt}
-              onChange={(e) => setScheduledAt(e.target.value)}
-              min={new Date().toISOString().slice(0, 16)}
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
-            />
-          </div>
-          <Button onClick={handleBook} loading={booking} disabled={!doctorId || !scheduledAt}>
-            Confirmar agendamento
-          </Button>
+          {step === 'doctor' && (
+            <>
+              <p className="text-sm font-semibold text-gray-700">Escolha o médico</p>
+              {linkedDoctors.length === 0 ? (
+                <p className="text-sm text-gray-400">Você não tem médicos vinculados. Solicite um vínculo em Configurações.</p>
+              ) : (
+                <div className="space-y-2">
+                  {linkedDoctors.map((c) => (
+                    <button
+                      key={c.doctorId}
+                      onClick={() => handleSelectDoctor(c)}
+                      className="w-full rounded-xl border border-gray-200 p-4 text-left hover:border-indigo-300 hover:bg-indigo-50 transition-colors"
+                    >
+                      <p className="text-sm font-semibold text-gray-800">{(c as any).doctor?.fullName ?? 'Médico'}</p>
+                      <p className="text-xs text-gray-400">{(c as any).doctor?.email}</p>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </>
+          )}
+
+          {step === 'slots' && (
+            <>
+              <div className="flex items-center gap-2">
+                <button onClick={() => setStep('doctor')} className="text-xs text-indigo-600 hover:underline">← Voltar</button>
+                <p className="text-sm font-semibold text-gray-700">
+                  Horários disponíveis — {(selectedDoctor as any)?.doctor?.fullName ?? 'Médico'}
+                </p>
+              </div>
+              {loadingSlots && <p className="text-sm text-gray-400">Carregando horários…</p>}
+              {!loadingSlots && availableSlots.length === 0 && (
+                <p className="text-sm text-gray-400">Nenhum horário disponível no momento. Aguarde o médico cadastrar novos horários.</p>
+              )}
+              {!loadingSlots && availableSlots.length > 0 && (
+                <div className="space-y-2">
+                  {availableSlots.map((slot) => (
+                    <div key={slot.id} className="flex items-center justify-between rounded-xl border border-gray-200 p-3">
+                      <div>
+                        <p className="text-sm font-medium text-gray-800">
+                          {format(parseISO(slot.date), "EEEE, dd 'de' MMMM", { locale: ptBR })}
+                        </p>
+                        <p className="text-xs text-gray-500">{slot.startTime} – {slot.endTime}</p>
+                      </div>
+                      <Button
+                        onClick={() => handleBookSlot(slot)}
+                        loading={booking === slot.id}
+                        className="text-xs px-4 py-2"
+                      >
+                        Agendar
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </>
+          )}
         </Card>
       )}
 

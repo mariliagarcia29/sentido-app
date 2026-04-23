@@ -32,8 +32,10 @@ export default {
     export: 'Exportar',
     settings: 'Configurações',
     patients: 'Pacientes',
+    agenda: 'Agenda',
     observations: 'Observações',
     wearables: 'Wearables',
+    consent: 'Consentimentos',
   },
   dashboard: {
     greeting: 'Olá, {{name}}',
