@@ -107,9 +107,9 @@ function MedicationSection({
                       alert(e?.response?.data?.message ?? 'Erro ao arquivar prescrição');
                     }
                   }}
-                  className="text-xs text-gray-400 hover:text-red-500 whitespace-nowrap"
+                  className="whitespace-nowrap rounded-md border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-600 hover:border-red-300 hover:bg-red-50 hover:text-red-600 transition-colors"
                 >
-                  Tornar histórico
+                  Arquivar
                 </button>
               </div>
               <div className="flex items-center gap-2">
