@@ -57,14 +57,25 @@ export class DoctorService {
     });
   }
 
-  // Médico arquiva prescrição (torna histórico) e cria anotação no prontuário
+  // Médico arquiva prescrição (torna histórico)
   async archiveMedication(doctorId: string, patientId: string, medicationId: string, ip: string) {
     await this.consent.assertConsent(doctorId, patientId);
     const med = await this.medications.findOne({ where: { id: medicationId, userId: patientId, prescribedBy: doctorId } });
     if (!med) throw new Error('Prescrição não encontrada');
-    await this.medications.update(medicationId, { archivedAt: new Date() });
+    const archivedAt = new Date();
+    await this.medications.update(medicationId, { archivedAt });
     await this.log(doctorId, 'ARCHIVE_MEDICATION', medicationId, ip);
-    return { ...med, archivedAt: new Date() };
+    return { ...med, archivedAt };
+  }
+
+  // Médico desarquiva prescrição (reativa para uso atual)
+  async unarchiveMedication(doctorId: string, patientId: string, medicationId: string, ip: string) {
+    await this.consent.assertConsent(doctorId, patientId);
+    const med = await this.medications.findOne({ where: { id: medicationId, userId: patientId, prescribedBy: doctorId } });
+    if (!med) throw new Error('Prescrição não encontrada');
+    await this.medications.update(medicationId, { archivedAt: null as any });
+    await this.log(doctorId, 'UNARCHIVE_MEDICATION', medicationId, ip);
+    return { ...med, archivedAt: null };
   }
 
   // Médico prescreve medicamento para paciente

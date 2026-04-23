@@ -71,6 +71,8 @@ export const doctorApi = {
     api.post<MedicationRecord>(`/doctor/patients/${patientId}/medications`, data),
   archiveMedication: (patientId: string, medicationId: string) =>
     api.patch<MedicationRecord>(`/doctor/patients/${patientId}/medications/${medicationId}/archive`),
+  unarchiveMedication: (patientId: string, medicationId: string) =>
+    api.patch<MedicationRecord>(`/doctor/patients/${patientId}/medications/${medicationId}/unarchive`),
   createObservation: (patientId: string, data: { content: string; severity: string; observationType?: string }) =>
     api.post<ClinicalObservation>(`/observations/${patientId}`, data),
   listObservations: (patientId: string) =>

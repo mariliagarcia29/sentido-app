@@ -53,9 +53,7 @@ function MedicationSection({
     } finally { setSaving(false); }
   };
 
-  const prescribed = medications.filter((m) => m.prescribedBy);
-  const current = prescribed.filter((m) => !m.archivedAt);
-  const previous = prescribed.filter((m) => !!m.archivedAt);
+  const current = medications.filter((m) => m.prescribedBy && !m.archivedAt);
 
   return (
     <div className="space-y-4">
@@ -90,56 +88,36 @@ function MedicationSection({
         </div>
       )}
 
-      {prescribed.length === 0 && (
-        <p className="text-sm text-gray-400">Nenhum medicamento prescrito ainda.</p>
+      {current.length === 0 && (
+        <p className="text-sm text-gray-400">Nenhum medicamento prescrito no momento.</p>
       )}
 
       {current.length > 0 && (
-        <div>
-          <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-2">Prescrições atuais</h3>
-          <div className="space-y-2">
-            {current.map((m) => (
-              <div key={m.id} className="rounded-lg border border-indigo-100 bg-indigo-50 p-4 space-y-2">
-                <div className="flex items-start justify-between gap-2">
-                  <p className="text-sm font-semibold text-gray-900">{m.name}{m.dose ? ` — ${m.dose}` : ''}</p>
-                  <button
-                    onClick={async () => {
-                      try {
-                        await doctorApi.archiveMedication(patientId, m.id);
-                        onArchive(m.id);
-                      } catch (e: any) {
-                        alert(e?.response?.data?.message ?? 'Erro ao arquivar prescrição');
-                      }
-                    }}
-                    className="text-xs text-gray-400 hover:text-red-500 whitespace-nowrap"
-                  >
-                    Tornar histórico
-                  </button>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Badge color={m.taken ? 'green' : 'red'}>{m.taken ? 'Tomado' : 'Não tomado pelo paciente'}</Badge>
-                  <span className="text-xs text-gray-400">{format(new Date(m.createdAt), "dd/MM/yyyy", { locale: ptBR })}</span>
-                </div>
+        <div className="space-y-2">
+          {current.map((m) => (
+            <div key={m.id} className="rounded-lg border border-indigo-100 bg-indigo-50 p-4 space-y-2">
+              <div className="flex items-start justify-between gap-2">
+                <p className="text-sm font-semibold text-gray-900">{m.name}{m.dose ? ` — ${m.dose}` : ''}</p>
+                <button
+                  onClick={async () => {
+                    try {
+                      await doctorApi.archiveMedication(patientId, m.id);
+                      onArchive(m.id);
+                    } catch (e: any) {
+                      alert(e?.response?.data?.message ?? 'Erro ao arquivar prescrição');
+                    }
+                  }}
+                  className="text-xs text-gray-400 hover:text-red-500 whitespace-nowrap"
+                >
+                  Tornar histórico
+                </button>
               </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {previous.length > 0 && (
-        <div>
-          <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-2">Prescrições anteriores</h3>
-          <div className="space-y-2">
-            {previous.map((m) => (
-              <div key={m.id} className="flex items-center justify-between rounded-lg border border-gray-100 bg-gray-50 p-3">
-                <div>
-                  <p className="text-sm text-gray-700 font-medium">{m.name}{m.dose ? ` — ${m.dose}` : ''}</p>
-                  <p className="text-xs text-gray-400 mt-0.5">{format(new Date(m.createdAt), "dd/MM/yyyy", { locale: ptBR })}</p>
-                </div>
-                <Badge color={m.taken ? 'green' : 'red'}>{m.taken ? 'Tomado' : 'Não tomado'}</Badge>
+              <div className="flex items-center gap-2">
+                <Badge color={m.taken ? 'green' : 'red'}>{m.taken ? 'Tomado' : 'Não tomado pelo paciente'}</Badge>
+                <span className="text-xs text-gray-400">desde {format(new Date(m.createdAt), "dd/MM/yyyy", { locale: ptBR })}</span>
               </div>
-            ))}
-          </div>
+            </div>
+          ))}
         </div>
       )}
     </div>
@@ -147,11 +125,13 @@ function MedicationSection({
 }
 
 function ProntuarioSection({
-  observations, patientId, onAdd,
+  observations, patientId, onAdd, historicalMeds, onUnarchive,
 }: {
   observations: ClinicalObservation[];
   patientId: string;
   onAdd: (obs: ClinicalObservation) => void;
+  historicalMeds: MedicationRecord[];
+  onUnarchive: (id: string) => void;
 }) {
   const { t } = useTranslation();
   const [showForm, setShowForm] = useState(false);
@@ -159,6 +139,7 @@ function ProntuarioSection({
   const [content, setContent] = useState('');
   const [severity, setSeverity] = useState<'info' | 'warn' | 'critical'>('info');
   const [saving, setSaving] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
 
   const severityColor: Record<string, 'blue' | 'yellow' | 'red'> = {
     info: 'blue', warn: 'yellow', critical: 'red',
@@ -262,6 +243,60 @@ function ProntuarioSection({
           <p className="text-sm text-gray-400">Nenhuma anotação registrada.</p>
         )}
       </div>
+
+      {/* Histórico de medicamentos */}
+      <div className="border-t border-gray-100 pt-4">
+        <button
+          onClick={() => setShowHistory((s) => !s)}
+          className="flex w-full items-center justify-between text-left"
+        >
+          <span className="text-sm font-semibold text-gray-600 uppercase tracking-wide">
+            Histórico de medicamentos
+            {historicalMeds.length > 0 && (
+              <span className="ml-2 rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-500">
+                {historicalMeds.length}
+              </span>
+            )}
+          </span>
+          <span className="text-xs text-gray-400">{showHistory ? '▲ Fechar' : '▼ Ver histórico'}</span>
+        </button>
+
+        {showHistory && (
+          <div className="mt-3 space-y-2">
+            {historicalMeds.length === 0 && (
+              <p className="text-sm text-gray-400">Nenhum medicamento no histórico.</p>
+            )}
+            {historicalMeds.map((m) => (
+              <div key={m.id} className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <p className="text-sm font-semibold text-gray-800">{m.name}{m.dose ? ` — ${m.dose}` : ''}</p>
+                    <p className="text-xs text-gray-400 mt-0.5">
+                      Início: {format(new Date(m.createdAt), "dd/MM/yyyy", { locale: ptBR })}
+                      {m.archivedAt && (
+                        <> · Fim: {format(new Date(m.archivedAt), "dd/MM/yyyy", { locale: ptBR })}</>
+                      )}
+                    </p>
+                  </div>
+                  <button
+                    onClick={async () => {
+                      try {
+                        await doctorApi.unarchiveMedication(patientId, m.id);
+                        onUnarchive(m.id);
+                      } catch (e: any) {
+                        alert(e?.response?.data?.message ?? 'Erro ao reativar medicamento');
+                      }
+                    }}
+                    className="whitespace-nowrap rounded-md border border-indigo-200 px-2 py-1 text-xs text-indigo-600 hover:bg-indigo-50 transition-colors"
+                  >
+                    Reativar
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -311,6 +346,10 @@ export default function PatientSummaryPage() {
 
   const handleArchiveMed = (id: string) => {
     setMedications((prev) => prev.map((m) => m.id === id ? { ...m, archivedAt: new Date().toISOString() } : m));
+  };
+
+  const handleUnarchiveMed = (id: string) => {
+    setMedications((prev) => prev.map((m) => m.id === id ? { ...m, archivedAt: undefined } : m));
   };
 
   if (loading) return <p className="text-sm text-gray-400">{t('common.loading')}</p>;
@@ -401,6 +440,8 @@ export default function PatientSummaryPage() {
               observations={summary.observations}
               patientId={patientId!}
               onAdd={handleAddObs}
+              historicalMeds={medications.filter((m) => m.prescribedBy && !!m.archivedAt)}
+              onUnarchive={handleUnarchiveMed}
             />
           </>
         )}

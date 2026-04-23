@@ -55,6 +55,16 @@ export class DoctorController {
     return this.doctor.getPatientMedications(user.id, patientId, req.ip ?? '');
   }
 
+  @Patch('patients/:patientId/medications/:medicationId/unarchive')
+  unarchiveMedication(
+    @CurrentUser() user: User,
+    @Param('patientId') patientId: string,
+    @Param('medicationId') medicationId: string,
+    @Req() req: Request,
+  ) {
+    return this.doctor.unarchiveMedication(user.id, patientId, medicationId, req.ip ?? '');
+  }
+
   @Patch('patients/:patientId/medications/:medicationId/archive')
   archiveMedication(
     @CurrentUser() user: User,
