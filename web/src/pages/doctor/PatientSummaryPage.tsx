@@ -240,14 +240,20 @@ function ProntuarioSection({
   const [closedText, setClosedText] = useState('');
   const [savingClosed, setSavingClosed] = useState(false);
 
+  // Notas de consulta
+  const [editingSession, setEditingSession] = useState(false);
+  const [sessionText, setSessionText] = useState('');
+  const [savingSession, setSavingSession] = useState(false);
+
   const severityColor: Record<string, 'blue' | 'yellow' | 'red'> = {
     info: 'blue', warn: 'yellow', critical: 'red',
   };
 
   const obs = observations ?? [];
   const closedDiagnosis = obs.find((o) => o.observationType === 'closed_diagnosis');
+  const sessionNote = obs.find((o) => o.observationType === 'session_note');
   const diagnoses = obs.filter((o) => o.observationType === 'diagnosis');
-  const notes = obs.filter((o) => o.observationType !== 'diagnosis' && o.observationType !== 'closed_diagnosis');
+  const notes = obs.filter((o) => o.observationType !== 'diagnosis' && o.observationType !== 'closed_diagnosis' && o.observationType !== 'session_note');
 
   const save = async () => {
     if (!content.trim()) return;
@@ -272,6 +278,21 @@ function ProntuarioSection({
       setClosedText('');
       setEditingClosed(false);
     } finally { setSavingClosed(false); }
+  };
+
+  const saveSessionNote = async () => {
+    if (!sessionText.trim()) return;
+    setSavingSession(true);
+    try {
+      const { data } = await doctorApi.createObservation(patientId, {
+        content: sessionText.trim(),
+        severity: 'info',
+        observationType: 'session_note',
+      });
+      onAdd(data);
+      setSessionText('');
+      setEditingSession(false);
+    } finally { setSavingSession(false); }
   };
 
   return (
@@ -326,6 +347,58 @@ function ProntuarioSection({
           </div>
         ) : (
           <p className="text-sm text-indigo-400 italic">Nenhum diagnóstico fechado registrado.</p>
+        )}
+      </div>
+
+      {/* Notas de consulta */}
+      <div className="rounded-xl border border-gray-200 bg-white p-4">
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest">Notas da Consulta</h3>
+          {!editingSession && (
+            <button
+              onClick={() => { setEditingSession(true); setSessionText(sessionNote?.content ?? ''); }}
+              className="text-xs font-medium text-indigo-600 hover:underline"
+            >
+              {sessionNote ? 'Editar' : '+ Adicionar'}
+            </button>
+          )}
+        </div>
+
+        {editingSession ? (
+          <div className="space-y-2">
+            <textarea
+              autoFocus
+              rows={5}
+              className="w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-400 resize-none"
+              placeholder="Atualize com as observações desta consulta: queixas, humor, conduta, plano terapêutico..."
+              value={sessionText}
+              onChange={(e) => setSessionText(e.target.value)}
+            />
+            <div className="flex gap-2">
+              <button
+                onClick={saveSessionNote}
+                disabled={savingSession}
+                className="rounded-lg bg-indigo-600 px-4 py-1.5 text-xs font-semibold text-white hover:bg-indigo-700 disabled:opacity-50 transition-colors"
+              >
+                {savingSession ? 'Salvando...' : 'Salvar'}
+              </button>
+              <button
+                onClick={() => setEditingSession(false)}
+                className="rounded-lg border border-gray-300 px-4 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50 transition-colors"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        ) : sessionNote ? (
+          <div>
+            <p className="text-sm text-gray-700 whitespace-pre-wrap">{sessionNote.content}</p>
+            <p className="text-xs text-gray-400 mt-2">
+              Atualizado em {format(new Date(sessionNote.createdAt), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+            </p>
+          </div>
+        ) : (
+          <p className="text-sm text-gray-400 italic">Nenhuma nota de consulta registrada.</p>
         )}
       </div>
 
