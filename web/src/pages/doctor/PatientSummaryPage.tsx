@@ -9,7 +9,7 @@ import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import Badge from '../../components/ui/Badge';
 
-type Tab = 'medications' | 'sintomas' | 'prontuario';
+type Tab = 'medications' | 'descontinuados' | 'sintomas' | 'prontuario';
 
 function RiskMeter({ score }: { score: number }) {
   const color = score >= 70 ? 'bg-red-500' : score >= 40 ? 'bg-yellow-400' : 'bg-green-400';
@@ -22,6 +22,40 @@ function RiskMeter({ score }: { score: number }) {
         <div className={`h-3 rounded-full transition-all ${color}`} style={{ width: `${score}%` }} />
       </div>
       <p className="text-right text-sm font-semibold">{score.toFixed(0)}/100</p>
+    </div>
+  );
+}
+
+function ArchiveConfirmModal({ medName, onConfirm, onCancel }: {
+  medName: string;
+  onConfirm: () => void;
+  onCancel: () => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+      <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl space-y-4">
+        <h2 className="text-base font-semibold text-gray-900">Arquivar medicamento</h2>
+        <p className="text-sm text-gray-600">
+          Esse medicamento não estará mais disponível para o seu paciente.
+        </p>
+        <p className="text-sm font-medium text-gray-800 rounded-lg bg-gray-50 border border-gray-200 px-3 py-2">
+          {medName}
+        </p>
+        <div className="flex gap-3 pt-1">
+          <button
+            onClick={onCancel}
+            className="flex-1 rounded-xl border border-gray-300 py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors"
+          >
+            Cancelar
+          </button>
+          <button
+            onClick={onConfirm}
+            className="flex-1 rounded-xl bg-red-500 py-2.5 text-sm font-semibold text-white hover:bg-red-600 transition-colors"
+          >
+            Confirmar
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -39,6 +73,7 @@ function MedicationSection({
   const [dose, setDose] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [confirmMed, setConfirmMed] = useState<MedicationRecord | null>(null);
 
   const save = async () => {
     if (!name.trim()) return;
@@ -53,85 +88,145 @@ function MedicationSection({
     } finally { setSaving(false); }
   };
 
+  const doArchive = async () => {
+    if (!confirmMed) return;
+    try {
+      await doctorApi.archiveMedication(patientId, confirmMed.id);
+      onArchive(confirmMed.id);
+    } catch (e: any) {
+      alert(e?.response?.data?.message ?? 'Erro ao arquivar prescrição');
+    } finally {
+      setConfirmMed(null);
+    }
+  };
+
   const current = medications.filter((m) => m.prescribedBy && !m.archivedAt);
 
   return (
-    <div className="space-y-4">
-      <div className="flex justify-end">
-        <Button variant="outline" className="text-xs" onClick={() => setShowForm((s) => !s)}>
-          {showForm ? 'Cancelar' : '+ Nova prescrição'}
-        </Button>
-      </div>
+    <>
+      {confirmMed && (
+        <ArchiveConfirmModal
+          medName={`${confirmMed.name}${confirmMed.dose ? ` — ${confirmMed.dose}` : ''}`}
+          onConfirm={doArchive}
+          onCancel={() => setConfirmMed(null)}
+        />
+      )}
 
-      {showForm && (
-        <div className="space-y-3 rounded-lg border border-gray-200 p-4">
-          <div>
-            <label className="text-sm font-medium text-gray-700">Nome do medicamento</label>
-            <input
-              className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
-              placeholder="Ex: Fluoxetina"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-            />
-          </div>
-          <div>
-            <label className="text-sm font-medium text-gray-700">Dose / Posologia</label>
-            <input
-              className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
-              placeholder="Ex: 20mg — 1x ao dia"
-              value={dose}
-              onChange={(e) => setDose(e.target.value)}
-            />
-          </div>
-          {error && <p className="text-sm text-red-500">{error}</p>}
-          <Button onClick={save} loading={saving}>Salvar prescrição</Button>
+      <div className="space-y-4">
+        <div className="flex justify-end">
+          <Button variant="outline" className="text-xs" onClick={() => setShowForm((s) => !s)}>
+            {showForm ? 'Cancelar' : '+ Nova prescrição'}
+          </Button>
         </div>
-      )}
 
-      {current.length === 0 && (
-        <p className="text-sm text-gray-400">Nenhum medicamento prescrito no momento.</p>
-      )}
+        {showForm && (
+          <div className="space-y-3 rounded-lg border border-gray-200 p-4">
+            <div>
+              <label className="text-sm font-medium text-gray-700">Nome do medicamento</label>
+              <input
+                className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                placeholder="Ex: Fluoxetina"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium text-gray-700">Dose / Posologia</label>
+              <input
+                className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                placeholder="Ex: 20mg — 1x ao dia"
+                value={dose}
+                onChange={(e) => setDose(e.target.value)}
+              />
+            </div>
+            {error && <p className="text-sm text-red-500">{error}</p>}
+            <Button onClick={save} loading={saving}>Salvar prescrição</Button>
+          </div>
+        )}
 
-      {current.length > 0 && (
-        <div className="space-y-2">
-          {current.map((m) => (
-            <div key={m.id} className="rounded-lg border border-indigo-100 bg-indigo-50 p-4 space-y-2">
-              <div className="flex items-start justify-between gap-2">
-                <p className="text-sm font-semibold text-gray-900">{m.name}{m.dose ? ` — ${m.dose}` : ''}</p>
+        {current.length === 0 && (
+          <p className="text-sm text-gray-400">Nenhum medicamento prescrito no momento.</p>
+        )}
+
+        {current.length > 0 && (
+          <div className="space-y-3">
+            {current.map((m) => (
+              <div key={m.id} className="rounded-xl border border-indigo-100 bg-indigo-50 p-4 space-y-3">
+                <div>
+                  <p className="text-sm font-semibold text-gray-900">{m.name}{m.dose ? ` — ${m.dose}` : ''}</p>
+                  <div className="flex items-center gap-2 mt-1">
+                    <Badge color={m.taken ? 'green' : 'red'}>{m.taken ? 'Tomado' : 'Não tomado pelo paciente'}</Badge>
+                    <span className="text-xs text-gray-400">desde {format(new Date(m.createdAt), "dd/MM/yyyy", { locale: ptBR })}</span>
+                  </div>
+                </div>
                 <button
-                  onClick={async () => {
-                    try {
-                      await doctorApi.archiveMedication(patientId, m.id);
-                      onArchive(m.id);
-                    } catch (e: any) {
-                      alert(e?.response?.data?.message ?? 'Erro ao arquivar prescrição');
-                    }
-                  }}
-                  className="whitespace-nowrap rounded-md border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-600 hover:border-red-300 hover:bg-red-50 hover:text-red-600 transition-colors"
+                  onClick={() => setConfirmMed(m)}
+                  className="w-full rounded-full border-2 border-red-400 bg-white py-2 text-sm font-semibold text-red-500 hover:bg-red-50 transition-colors"
                 >
                   Arquivar
                 </button>
               </div>
-              <div className="flex items-center gap-2">
-                <Badge color={m.taken ? 'green' : 'red'}>{m.taken ? 'Tomado' : 'Não tomado pelo paciente'}</Badge>
-                <span className="text-xs text-gray-400">desde {format(new Date(m.createdAt), "dd/MM/yyyy", { locale: ptBR })}</span>
-              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </>
+  );
+}
+
+function DiscontinuedSection({
+  medications, patientId, onUnarchive,
+}: {
+  medications: MedicationRecord[];
+  patientId: string;
+  onUnarchive: (id: string) => void;
+}) {
+  const discontinued = medications.filter((m) => m.prescribedBy && !!m.archivedAt);
+
+  if (discontinued.length === 0) {
+    return <p className="text-sm text-gray-400">Nenhum medicamento descontinuado.</p>;
+  }
+
+  return (
+    <div className="space-y-3">
+      {discontinued.map((m) => (
+        <div key={m.id} className="rounded-xl border border-gray-200 bg-gray-50 p-4">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-sm font-semibold text-gray-800">{m.name}{m.dose ? ` — ${m.dose}` : ''}</p>
+              <p className="text-xs text-gray-400 mt-1">
+                Início: {format(new Date(m.createdAt), "dd/MM/yyyy", { locale: ptBR })}
+                {m.archivedAt && (
+                  <> · Fim: {format(new Date(m.archivedAt), "dd/MM/yyyy", { locale: ptBR })}</>
+                )}
+              </p>
             </div>
-          ))}
+            <button
+              onClick={async () => {
+                try {
+                  await doctorApi.unarchiveMedication(patientId, m.id);
+                  onUnarchive(m.id);
+                } catch (e: any) {
+                  alert(e?.response?.data?.message ?? 'Erro ao reativar medicamento');
+                }
+              }}
+              className="whitespace-nowrap rounded-full border border-indigo-300 bg-white px-4 py-1.5 text-xs font-semibold text-indigo-600 hover:bg-indigo-50 transition-colors"
+            >
+              Reativar
+            </button>
+          </div>
         </div>
-      )}
+      ))}
     </div>
   );
 }
 
 function ProntuarioSection({
-  observations, patientId, onAdd, historicalMeds, onUnarchive,
+  observations, patientId, onAdd,
 }: {
   observations: ClinicalObservation[];
   patientId: string;
   onAdd: (obs: ClinicalObservation) => void;
-  historicalMeds: MedicationRecord[];
-  onUnarchive: (id: string) => void;
 }) {
   const { t } = useTranslation();
   const [showForm, setShowForm] = useState(false);
@@ -139,7 +234,6 @@ function ProntuarioSection({
   const [content, setContent] = useState('');
   const [severity, setSeverity] = useState<'info' | 'warn' | 'critical'>('info');
   const [saving, setSaving] = useState(false);
-  const [showHistory, setShowHistory] = useState(false);
 
   const severityColor: Record<string, 'blue' | 'yellow' | 'red'> = {
     info: 'blue', warn: 'yellow', critical: 'red',
@@ -243,60 +337,6 @@ function ProntuarioSection({
           <p className="text-sm text-gray-400">Nenhuma anotação registrada.</p>
         )}
       </div>
-
-      {/* Histórico de medicamentos */}
-      <div className="border-t border-gray-100 pt-4">
-        <button
-          onClick={() => setShowHistory((s) => !s)}
-          className="flex w-full items-center justify-between text-left"
-        >
-          <span className="text-sm font-semibold text-gray-600 uppercase tracking-wide">
-            Histórico de medicamentos
-            {historicalMeds.length > 0 && (
-              <span className="ml-2 rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-500">
-                {historicalMeds.length}
-              </span>
-            )}
-          </span>
-          <span className="text-xs text-gray-400">{showHistory ? '▲ Fechar' : '▼ Ver histórico'}</span>
-        </button>
-
-        {showHistory && (
-          <div className="mt-3 space-y-2">
-            {historicalMeds.length === 0 && (
-              <p className="text-sm text-gray-400">Nenhum medicamento no histórico.</p>
-            )}
-            {historicalMeds.map((m) => (
-              <div key={m.id} className="rounded-lg border border-gray-200 bg-gray-50 p-3">
-                <div className="flex items-start justify-between gap-2">
-                  <div>
-                    <p className="text-sm font-semibold text-gray-800">{m.name}{m.dose ? ` — ${m.dose}` : ''}</p>
-                    <p className="text-xs text-gray-400 mt-0.5">
-                      Início: {format(new Date(m.createdAt), "dd/MM/yyyy", { locale: ptBR })}
-                      {m.archivedAt && (
-                        <> · Fim: {format(new Date(m.archivedAt), "dd/MM/yyyy", { locale: ptBR })}</>
-                      )}
-                    </p>
-                  </div>
-                  <button
-                    onClick={async () => {
-                      try {
-                        await doctorApi.unarchiveMedication(patientId, m.id);
-                        onUnarchive(m.id);
-                      } catch (e: any) {
-                        alert(e?.response?.data?.message ?? 'Erro ao reativar medicamento');
-                      }
-                    }}
-                    className="whitespace-nowrap rounded-md border border-indigo-200 px-2 py-1 text-xs text-indigo-600 hover:bg-indigo-50 transition-colors"
-                  >
-                    Reativar
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
     </div>
   );
 }
@@ -352,6 +392,8 @@ export default function PatientSummaryPage() {
     setMedications((prev) => prev.map((m) => m.id === id ? { ...m, archivedAt: undefined } : m));
   };
 
+  const discontinuedCount = medications.filter((m) => m.prescribedBy && !!m.archivedAt).length;
+
   if (loading) return <p className="text-sm text-gray-400">{t('common.loading')}</p>;
   if (!summary) return <p className="text-sm text-red-400">Paciente não encontrado</p>;
 
@@ -389,17 +431,18 @@ export default function PatientSummaryPage() {
       </Card>
 
       {/* Abas */}
-      <div className="border-b border-gray-200">
-        <div className="flex gap-6">
+      <div className="border-b border-gray-200 overflow-x-auto">
+        <div className="flex gap-6 min-w-max">
           {([
             { key: 'medications', label: 'Medicamentos' },
+            { key: 'descontinuados', label: discontinuedCount > 0 ? `Descontinuados (${discontinuedCount})` : 'Descontinuados' },
             { key: 'sintomas', label: 'Sintomas' },
             { key: 'prontuario', label: 'Prontuário' },
           ] as { key: Tab; label: string }[]).map(({ key, label }) => (
             <button
               key={key}
               onClick={() => setTab(key)}
-              className={`pb-3 text-sm font-medium border-b-2 transition-colors ${
+              className={`pb-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
                 tab === key
                   ? 'border-indigo-600 text-indigo-600'
                   : 'border-transparent text-gray-500 hover:text-gray-700'
@@ -414,6 +457,9 @@ export default function PatientSummaryPage() {
       <Card>
         {tab === 'medications' && (
           <MedicationSection medications={medications} patientId={patientId!} onAdd={handleAddMed} onArchive={handleArchiveMed} />
+        )}
+        {tab === 'descontinuados' && (
+          <DiscontinuedSection medications={medications} patientId={patientId!} onUnarchive={handleUnarchiveMed} />
         )}
         {tab === 'sintomas' && (
           <div className="space-y-3">
@@ -440,8 +486,6 @@ export default function PatientSummaryPage() {
               observations={summary.observations}
               patientId={patientId!}
               onAdd={handleAddObs}
-              historicalMeds={medications.filter((m) => m.prescribedBy && !!m.archivedAt)}
-              onUnarchive={handleUnarchiveMed}
             />
           </>
         )}
