@@ -67,9 +67,9 @@ export class ExportService {
         order: { createdAt: 'ASC' },
       });
       rows.push('--- HUMOR ---');
-      rows.push('Data,Pontuação,Nota,Privado');
+      rows.push('Data,Pontuação,Etiqueta,Privado');
       for (const m of moods) {
-        rows.push(`${fmtDate(m.createdAt)},${m.score},"${(m.note ?? '').replace(/"/g, '""')}",${m.isPrivate ? 'Sim' : 'Não'}`);
+        rows.push(`${fmtDate(m.createdAt)},${m.score},"${(m.label ?? '').replace(/"/g, '""')}",${m.isPrivate ? 'Sim' : 'Não'}`);
       }
       rows.push('');
     }
@@ -105,5 +105,6 @@ export class ExportService {
 }
 
 function fmtDate(d: Date): string {
-  return d.toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+  const p = (n: number) => String(n).padStart(2, '0');
+  return `${p(d.getDate())}/${p(d.getMonth() + 1)}/${d.getFullYear()} ${p(d.getHours())}:${p(d.getMinutes())}`;
 }
