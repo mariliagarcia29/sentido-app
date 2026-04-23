@@ -235,9 +235,19 @@ function ProntuarioSection({
   const [severity, setSeverity] = useState<'info' | 'warn' | 'critical'>('info');
   const [saving, setSaving] = useState(false);
 
+  // Diagnóstico fechado
+  const [editingClosed, setEditingClosed] = useState(false);
+  const [closedText, setClosedText] = useState('');
+  const [savingClosed, setSavingClosed] = useState(false);
+
   const severityColor: Record<string, 'blue' | 'yellow' | 'red'> = {
     info: 'blue', warn: 'yellow', critical: 'red',
   };
+
+  const obs = observations ?? [];
+  const closedDiagnosis = obs.find((o) => o.observationType === 'closed_diagnosis');
+  const diagnoses = obs.filter((o) => o.observationType === 'diagnosis');
+  const notes = obs.filter((o) => o.observationType !== 'diagnosis' && o.observationType !== 'closed_diagnosis');
 
   const save = async () => {
     if (!content.trim()) return;
@@ -249,11 +259,77 @@ function ProntuarioSection({
     } finally { setSaving(false); }
   };
 
-  const diagnoses = (observations ?? []).filter((o) => o.observationType === 'diagnosis');
-  const notes = (observations ?? []).filter((o) => o.observationType !== 'diagnosis');
+  const saveClosedDiagnosis = async () => {
+    if (!closedText.trim()) return;
+    setSavingClosed(true);
+    try {
+      const { data } = await doctorApi.createObservation(patientId, {
+        content: closedText.trim(),
+        severity: 'info',
+        observationType: 'closed_diagnosis',
+      });
+      onAdd(data);
+      setClosedText('');
+      setEditingClosed(false);
+    } finally { setSavingClosed(false); }
+  };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
+
+      {/* Diagnóstico Fechado */}
+      <div className="rounded-xl border-2 border-indigo-200 bg-indigo-50 p-4">
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="text-xs font-bold text-indigo-700 uppercase tracking-widest">Diagnóstico Fechado</h3>
+          {!editingClosed && (
+            <button
+              onClick={() => { setEditingClosed(true); setClosedText(closedDiagnosis?.content ?? ''); }}
+              className="text-xs font-medium text-indigo-600 hover:underline"
+            >
+              {closedDiagnosis ? 'Editar' : '+ Adicionar'}
+            </button>
+          )}
+        </div>
+
+        {editingClosed ? (
+          <div className="space-y-2">
+            <input
+              autoFocus
+              className="w-full rounded-lg border border-indigo-300 bg-white px-3 py-2 text-sm font-medium placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+              placeholder="Ex: Depressão maior, Transtorno bipolar tipo I..."
+              value={closedText}
+              onChange={(e) => setClosedText(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') saveClosedDiagnosis(); if (e.key === 'Escape') setEditingClosed(false); }}
+            />
+            <div className="flex gap-2">
+              <button
+                onClick={saveClosedDiagnosis}
+                disabled={savingClosed}
+                className="rounded-lg bg-indigo-600 px-4 py-1.5 text-xs font-semibold text-white hover:bg-indigo-700 disabled:opacity-50 transition-colors"
+              >
+                {savingClosed ? 'Salvando...' : 'Salvar'}
+              </button>
+              <button
+                onClick={() => setEditingClosed(false)}
+                className="rounded-lg border border-gray-300 px-4 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50 transition-colors"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        ) : closedDiagnosis ? (
+          <div>
+            <p className="text-base font-semibold text-indigo-900">{closedDiagnosis.content}</p>
+            <p className="text-xs text-indigo-400 mt-1">
+              Atualizado em {format(new Date(closedDiagnosis.createdAt), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+            </p>
+          </div>
+        ) : (
+          <p className="text-sm text-indigo-400 italic">Nenhum diagnóstico fechado registrado.</p>
+        )}
+      </div>
+
+      {/* Tópicos de atenção e anotações */}
       <div className="flex justify-end">
         <Button variant="outline" className="text-xs" onClick={() => setShowForm((s) => !s)}>
           {showForm ? t('common.cancel') : '+ Nova anotação'}
@@ -269,7 +345,7 @@ function ProntuarioSection({
                 onClick={() => setObsType(type)}
                 className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${obsType === type ? 'bg-indigo-600 text-white border-indigo-600' : 'border-gray-300 text-gray-600 hover:border-indigo-400'}`}
               >
-                {type === 'note' ? 'Anotação clínica' : 'Diagnóstico'}
+                {type === 'note' ? 'Tópico de atenção' : 'Diagnóstico'}
               </button>
             ))}
           </div>
@@ -289,12 +365,12 @@ function ProntuarioSection({
           )}
           <div>
             <label className="text-sm font-medium text-gray-700">
-              {obsType === 'diagnosis' ? 'Diagnóstico' : 'Anotação clínica'}
+              {obsType === 'diagnosis' ? 'Diagnóstico' : 'Tópico de atenção'}
             </label>
             <textarea
               className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm resize-none"
               rows={4}
-              placeholder={obsType === 'diagnosis' ? 'Descreva o diagnóstico do paciente...' : 'Descreva as observações, conduta...'}
+              placeholder={obsType === 'diagnosis' ? 'Descreva o diagnóstico...' : 'Descreva a observação, conduta ou alerta...'}
               value={content}
               onChange={(e) => setContent(e.target.value)}
             />
@@ -306,37 +382,38 @@ function ProntuarioSection({
       {diagnoses.length > 0 && (
         <div className="space-y-2">
           <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">Diagnósticos</h3>
-          {diagnoses.map((obs) => (
-            <div key={obs.id} className="rounded-lg border border-purple-100 bg-purple-50 p-3">
-              <p className="text-sm text-gray-800 font-medium">{obs.content}</p>
+          {diagnoses.map((o) => (
+            <div key={o.id} className="rounded-lg border border-purple-100 bg-purple-50 p-3">
+              <p className="text-sm text-gray-800 font-medium">{o.content}</p>
               <p className="text-xs text-gray-400 mt-1">
-                {format(new Date(obs.createdAt), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                {format(new Date(o.createdAt), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
               </p>
             </div>
           ))}
         </div>
       )}
 
-      <div className="space-y-3">
-        {diagnoses.length > 0 && notes.length > 0 && (
-          <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">Anotações clínicas</h3>
-        )}
-        {notes.map((obs) => (
-          <div key={obs.id} className="flex gap-3 rounded-lg border border-gray-100 p-3">
-            <Badge color={severityColor[obs.severity]}>{obs.severity === 'info' ? 'Info' : obs.severity === 'warn' ? 'Atenção' : 'Crítico'}</Badge>
-            <div className="flex-1">
-              <p className="text-sm text-gray-700">{obs.content}</p>
-              <p className="text-xs text-gray-400 mt-1">
-                {format(new Date(obs.createdAt), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
-                {' · '}{obs.triggeredBy === 'doctor' ? 'Médico' : 'Sistema'}
-              </p>
+      {notes.length > 0 && (
+        <div className="space-y-2">
+          <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">Tópicos de atenção</h3>
+          {notes.map((o) => (
+            <div key={o.id} className="flex gap-3 rounded-lg border border-gray-100 p-3">
+              <Badge color={severityColor[o.severity]}>{o.severity === 'info' ? 'Info' : o.severity === 'warn' ? 'Atenção' : 'Crítico'}</Badge>
+              <div className="flex-1">
+                <p className="text-sm text-gray-700">{o.content}</p>
+                <p className="text-xs text-gray-400 mt-1">
+                  {format(new Date(o.createdAt), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                  {' · '}{o.triggeredBy === 'doctor' ? 'Médico' : 'Sistema'}
+                </p>
+              </div>
             </div>
-          </div>
-        ))}
-        {(observations ?? []).length === 0 && (
-          <p className="text-sm text-gray-400">Nenhuma anotação registrada.</p>
-        )}
-      </div>
+          ))}
+        </div>
+      )}
+
+      {notes.length === 0 && diagnoses.length === 0 && (
+        <p className="text-sm text-gray-400">Nenhuma anotação registrada.</p>
+      )}
     </div>
   );
 }
