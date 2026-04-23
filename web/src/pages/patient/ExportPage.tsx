@@ -26,8 +26,8 @@ export default function ExportPage() {
     setError('');
     try {
       const response = await availabilityApi.downloadCsv(from, to, includes);
-      const blob = new Blob([response.data], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
+      // response.data is already a Blob when responseType:'blob'
+      const url = URL.createObjectURL(response.data as Blob);
       const link = document.createElement('a');
       link.href = url;
       link.download = `sentido-${from}-${to}.csv`;
@@ -35,8 +35,10 @@ export default function ExportPage() {
       link.click();
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
-    } catch {
-      setError('Erro ao gerar planilha. Tente novamente.');
+    } catch (e: any) {
+      const status = e?.response?.status;
+      if (status === 404) setError('Endpoint não encontrado. O servidor ainda pode estar sendo atualizado — aguarde 1 minuto e tente novamente.');
+      else setError(`Erro ao gerar planilha (${status ?? 'sem conexão'}). Tente novamente.`);
     } finally {
       setDownloading(false);
     }
