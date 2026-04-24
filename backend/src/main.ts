@@ -56,6 +56,7 @@ async function bootstrap() {
       if (allowedOrigins.includes(origin)) return cb(null, true);
       if (/^https:\/\/[a-z0-9-]+-marilia29\.vercel\.app$/.test(origin)) return cb(null, true);
       if (/^https:\/\/[a-z0-9-]+\.vercel\.app$/.test(origin)) return cb(null, true);
+      if (/^https:\/\/[a-z0-9-]+\.netlify\.app$/.test(origin)) return cb(null, true);
       if (origin === 'http://localhost:5173' || origin === 'http://localhost:8081') return cb(null, true);
       cb(new Error('Not allowed by CORS'));
     },
