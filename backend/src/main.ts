@@ -45,14 +45,18 @@ async function bootstrap() {
     hsts: { maxAge: 31536000, includeSubDomains: true, preload: true },
   }));
 
-  // CORS — aceita apenas origens conhecidas
+  // CORS — aceita origens explícitas + todos os subdomínios *.vercel.app (preview deploys)
   const allowedOrigins = (config.get('FRONTEND_ORIGIN', 'http://localhost:8081'))
     .split(',')
     .map((o: string) => o.trim());
 
   app.enableCors({
     origin: (origin: string | undefined, cb: (err: Error | null, allow?: boolean) => void) => {
-      if (!origin || allowedOrigins.includes(origin)) return cb(null, true);
+      if (!origin) return cb(null, true);
+      if (allowedOrigins.includes(origin)) return cb(null, true);
+      if (/^https:\/\/[a-z0-9-]+-marilia29\.vercel\.app$/.test(origin)) return cb(null, true);
+      if (/^https:\/\/[a-z0-9-]+\.vercel\.app$/.test(origin)) return cb(null, true);
+      if (origin === 'http://localhost:5173' || origin === 'http://localhost:8081') return cb(null, true);
       cb(new Error('Not allowed by CORS'));
     },
     methods: ['GET', 'POST', 'PATCH', 'DELETE'],
