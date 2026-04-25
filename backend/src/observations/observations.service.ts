@@ -63,17 +63,24 @@ export class ObservationsService {
   }
 
   getMine(patientId: string) {
-    return this.obs.find({ where: { patientId }, relations: ['doctor'], order: { createdAt: 'DESC' } });
+    return this.obs.find({
+      where: { patientId, triggeredBy: ObservationTrigger.SYSTEM },
+      order: { createdAt: 'DESC' },
+    });
   }
 
   async markRead(id: string, patientId: string) {
-    const record = await this.obs.findOne({ where: { id, patientId } });
+    const record = await this.obs.findOne({
+      where: { id, patientId, triggeredBy: ObservationTrigger.SYSTEM },
+    });
     if (!record) throw new NotFoundException('Observação não encontrada');
     record.isRead = true;
     return this.obs.save(record);
   }
 
   countUnread(patientId: string) {
-    return this.obs.count({ where: { patientId, isRead: false } });
+    return this.obs.count({
+      where: { patientId, isRead: false, triggeredBy: ObservationTrigger.SYSTEM },
+    });
   }
 }

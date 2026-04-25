@@ -8,7 +8,6 @@ const patientNav: NavItem[] = [
   { to: '/dashboard', label: 'nav.dashboard', icon: '🏠' },
   { to: '/records', label: 'nav.records', icon: '📋' },
   { to: '/appointments', label: 'nav.appointments', icon: '🗓' },
-  { to: '/observations', label: 'nav.observations', icon: '🔔' },
   { to: '/wearables', label: 'nav.wearables', icon: '⌚' },
   { to: '/export', label: 'nav.export', icon: '📄' },
   { to: '/consent', label: 'nav.consent', icon: '🔐' },
