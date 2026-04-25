@@ -48,7 +48,7 @@ export class AvailabilityController {
     if (!slot) throw new NotFoundException('Slot não encontrado');
     if (slot.isBooked) throw new ForbiddenException('Slot já agendado');
 
-    const scheduledAt = new Date(`${slot.date}T${slot.startTime}:00`).toISOString();
+    const scheduledAt = new Date(`${slot.date}T${slot.startTime}`).toISOString();
     const appointment = await this.appointments.create(user.id, { doctorId: slot.doctorId, scheduledAt });
     await this.availability.markBooked(slotId, appointment.id);
     return { slot: { ...slot, isBooked: true, appointmentId: appointment.id }, appointment };
