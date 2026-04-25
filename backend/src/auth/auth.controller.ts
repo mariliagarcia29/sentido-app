@@ -56,6 +56,12 @@ export class AuthController {
     return this.auth.changePassword(user.id, body.currentPassword, body.newPassword, (req as any).ip ?? '');
   }
 
+  @Post('admin/reset-password')
+  @HttpCode(HttpStatus.OK)
+  adminResetPassword(@Body() body: { adminKey: string; email: string; newPassword: string }) {
+    return this.auth.adminResetPassword(body.adminKey, body.email, body.newPassword);
+  }
+
   @Get('me')
   @UseGuards(JwtAuthGuard)
   me(@CurrentUser() user: User) {

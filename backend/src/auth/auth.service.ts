@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException, ConflictException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, ConflictException, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, LessThan } from 'typeorm';
 import { JwtService } from '@nestjs/jwt';
@@ -115,6 +115,16 @@ export class AuthService {
     await this.log(userId, 'LOGOUT', 'users', ip);
     // Limpa tokens expirados desta sessão (housekeeping passivo — não bloqueia a resposta)
     this.blacklist.delete({ userId, expiresAt: LessThan(new Date()) }).catch(() => {});
+  }
+
+  async adminResetPassword(adminKey: string, email: string, newPassword: string) {
+    const expectedKey = process.env.ADMIN_RESET_KEY;
+    if (!expectedKey || adminKey !== expectedKey) throw new UnauthorizedException('Chave inválida');
+    const user = await this.users.findOne({ where: { email } });
+    if (!user) throw new NotFoundException('Usuário não encontrado');
+    user.passwordHash = await bcrypt.hash(newPassword, 12);
+    await this.users.save(user);
+    return { message: 'Senha redefinida com sucesso' };
   }
 
   async isBlacklisted(jti: string): Promise<boolean> {

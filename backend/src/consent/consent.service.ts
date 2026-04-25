@@ -30,7 +30,7 @@ export class ConsentService {
     if (existing) throw new BadRequestException('Já existe vínculo ativo com este médico');
 
     const record = await this.consents.save(
-      this.consents.create({ doctorId: doctor.id, patientId, accessLevel: 'full' }),
+      this.consents.create({ doctorId: doctor.id, patientId, accessLevel: 'full', status: ConsentStatus.ACTIVE }),
     );
     await this.log(patientId, 'CONSENT_REQUEST', `doctors/${doctor.id}`, ip);
 
@@ -55,7 +55,7 @@ export class ConsentService {
     if (existing) throw new BadRequestException('Já existe vínculo ativo com este paciente');
 
     const record = await this.consents.save(
-      this.consents.create({ doctorId, patientId: patient.id, accessLevel: dto.accessLevel }),
+      this.consents.create({ doctorId, patientId: patient.id, accessLevel: dto.accessLevel, status: ConsentStatus.ACTIVE }),
     );
     await this.log(doctorId, 'CONSENT_INVITE', `patients/${patient.id}`, ip);
 
