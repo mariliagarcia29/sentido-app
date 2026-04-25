@@ -1,4 +1,4 @@
-import { Controller, Post, Get, Body, Req, HttpCode, HttpStatus, UseGuards } from '@nestjs/common';
+import { Controller, Post, Get, Patch, Body, Req, HttpCode, HttpStatus, UseGuards } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { Request } from 'express';
 import { AuthService } from './auth.service';
@@ -43,6 +43,17 @@ export class AuthController {
       await this.auth.logout(jwtPayload.jti, user.id, jwtPayload.exp, req.ip ?? '');
     }
     return { message: 'Sessão encerrada com sucesso' };
+  }
+
+  @Patch('change-password')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(JwtAuthGuard)
+  changePassword(
+    @CurrentUser() user: User,
+    @Body() body: { currentPassword: string; newPassword: string },
+    @Req() req: Request,
+  ) {
+    return this.auth.changePassword(user.id, body.currentPassword, body.newPassword, (req as any).ip ?? '');
   }
 
   @Get('me')

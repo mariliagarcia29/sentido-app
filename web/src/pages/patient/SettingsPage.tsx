@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import i18n from '../../i18n';
 import { useAuth } from '../../context/AuthContext';
-import { preferencesApi, notificationsApi, consentApi, exportsApi, type UserPreferences } from '../../api';
+import { preferencesApi, notificationsApi, consentApi, exportsApi, authApi, type UserPreferences } from '../../api';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import Badge from '../../components/ui/Badge';
@@ -44,6 +44,10 @@ export default function SettingsPage() {
   const [doctors, setDoctors] = useState<any[]>([]);
   const [revoking, setRevoking] = useState<string | null>(null);
   const [requestingExport, setRequestingExport] = useState(false);
+  const [pwForm, setPwForm] = useState({ current: '', next: '', confirm: '' });
+  const [pwSaving, setPwSaving] = useState(false);
+  const [pwError, setPwError] = useState('');
+  const [pwSuccess, setPwSuccess] = useState(false);
 
   useEffect(() => {
     preferencesApi.get().then((r) => setPrefs(r.data)).catch(() => {});
@@ -106,6 +110,22 @@ export default function SettingsPage() {
 
   const handleLogout = () => { logout(); navigate('/login'); };
 
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPwError('');
+    setPwSuccess(false);
+    if (pwForm.next !== pwForm.confirm) { setPwError('As senhas novas não coincidem.'); return; }
+    if (pwForm.next.length < 6) { setPwError('A nova senha deve ter pelo menos 6 caracteres.'); return; }
+    setPwSaving(true);
+    try {
+      await authApi.changePassword(pwForm.current, pwForm.next);
+      setPwSuccess(true);
+      setPwForm({ current: '', next: '', confirm: '' });
+    } catch (err: any) {
+      setPwError(err?.response?.data?.message ?? 'Erro ao alterar senha.');
+    } finally { setPwSaving(false); }
+  };
+
   const activeDoctors = doctors.filter((d) => d.status === 'active');
 
   return (
@@ -118,6 +138,30 @@ export default function SettingsPage() {
         <p className="text-sm font-medium text-gray-800">{user?.fullName}</p>
         <p className="text-sm text-gray-500">{user?.email}</p>
         <p className="text-xs text-gray-400 capitalize">{user?.role}</p>
+      </Card>
+
+      {/* Trocar senha */}
+      <Card className="space-y-3">
+        <p className="text-xs text-gray-500 uppercase font-semibold tracking-wide">Segurança</p>
+        <form onSubmit={handleChangePassword} className="space-y-3">
+          {(['current', 'next', 'confirm'] as const).map((field) => (
+            <div key={field}>
+              <label className="text-xs text-gray-500 block mb-1">
+                {field === 'current' ? 'Senha atual' : field === 'next' ? 'Nova senha' : 'Confirmar nova senha'}
+              </label>
+              <input
+                type="password"
+                value={pwForm[field]}
+                onChange={(e) => setPwForm((p) => ({ ...p, [field]: e.target.value }))}
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                required
+              />
+            </div>
+          ))}
+          {pwError && <p className="text-xs text-red-500">{pwError}</p>}
+          {pwSuccess && <p className="text-xs text-green-600">Senha alterada com sucesso!</p>}
+          <Button type="submit" loading={pwSaving} className="w-full">Trocar senha</Button>
+        </form>
       </Card>
 
       {/* Idioma */}

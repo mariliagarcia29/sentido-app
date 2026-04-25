@@ -23,6 +23,8 @@ export const authApi = {
     api.post<{ access_token: string; user: User }>('/auth/oauth', { provider, idToken }),
   me: () => api.get<User>('/auth/me'),
   logout: () => api.post('/auth/logout'),
+  changePassword: (currentPassword: string, newPassword: string) =>
+    api.patch<{ message: string }>('/auth/change-password', { currentPassword, newPassword }),
 };
 
 // Records

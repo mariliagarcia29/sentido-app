@@ -54,6 +54,19 @@ export class AuthService {
     return this.signToken(user);
   }
 
+  async changePassword(userId: string, currentPassword: string, newPassword: string, ip: string) {
+    const user = await this.users.findOne({ where: { id: userId } });
+    if (!user || !user.passwordHash) throw new UnauthorizedException('Usuário não encontrado');
+
+    const valid = await bcrypt.compare(currentPassword, user.passwordHash);
+    if (!valid) throw new UnauthorizedException('Senha atual incorreta');
+
+    user.passwordHash = await bcrypt.hash(newPassword, 12);
+    await this.users.save(user);
+    await this.log(userId, 'CHANGE_PASSWORD', 'users', ip);
+    return { message: 'Senha alterada com sucesso' };
+  }
+
   // OAuth login: valida o idToken com o provider, encontra ou cria usuário+vínculo
   async oauthLogin(dto: OauthLoginDto, ip: string) {
     const { provider, idToken } = dto;
