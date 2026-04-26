@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Delete, Param, Body, UseGuards, ForbiddenException, NotFoundException } from '@nestjs/common';
+import { Controller, Get, Post, Delete, Param, Body, UseGuards, ForbiddenException, NotFoundException, InternalServerErrorException, Logger } from '@nestjs/common';
 import { AvailabilityService } from './availability.service';
 import { CreateSlotDto } from './dto/create-slot.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -11,6 +11,8 @@ import { AppointmentsService } from '../appointments/appointments.service';
 @UseGuards(JwtAuthGuard)
 @Controller('availability')
 export class AvailabilityController {
+  private readonly logger = new Logger(AvailabilityController.name);
+
   constructor(
     private readonly availability: AvailabilityService,
     private readonly appointments: AppointmentsService,
@@ -48,9 +50,20 @@ export class AvailabilityController {
     if (!slot) throw new NotFoundException('Slot não encontrado');
     if (slot.isBooked) throw new ForbiddenException('Slot já agendado');
 
-    const scheduledAt = new Date(`${slot.date}T${slot.startTime}`).toISOString();
-    const appointment = await this.appointments.create(user.id, { doctorId: slot.doctorId, scheduledAt });
-    await this.availability.markBooked(slotId, appointment.id);
-    return { slot: { ...slot, isBooked: true, appointmentId: appointment.id }, appointment };
+    try {
+      // slot.date may be a Date object or YYYY-MM-DD string depending on TypeORM/pg version
+      const dateStr = slot.date instanceof Date
+        ? slot.date.toISOString().split('T')[0]
+        : String(slot.date).split('T')[0];
+      const timeStr = String(slot.startTime).substring(0, 8);
+      const scheduledAt = new Date(`${dateStr}T${timeStr}Z`).toISOString();
+
+      const appointment = await this.appointments.create(user.id, { doctorId: slot.doctorId, scheduledAt });
+      await this.availability.markBooked(slotId, appointment.id);
+      return { slot: { ...slot, isBooked: true, appointmentId: appointment.id }, appointment };
+    } catch (err: any) {
+      this.logger.error(`bookSlot error: ${err?.message}`, err?.stack);
+      throw err;
+    }
   }
 }
