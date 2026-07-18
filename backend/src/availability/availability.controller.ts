@@ -4,11 +4,12 @@ import { CreateSlotDto } from './dto/create-slot.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
+import { FeatureGuard } from '../common/guards/feature.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { User, UserRole } from '../users/entities/user.entity';
 import { AppointmentsService } from '../appointments/appointments.service';
 
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, FeatureGuard('NATIVE_APPOINTMENTS'))
 @Controller('availability')
 export class AvailabilityController {
   private readonly logger = new Logger(AvailabilityController.name);
@@ -51,10 +52,7 @@ export class AvailabilityController {
     if (slot.isBooked) throw new ForbiddenException('Slot já agendado');
 
     try {
-      // slot.date may be a Date object or YYYY-MM-DD string depending on TypeORM/pg version
-      const dateStr = slot.date instanceof Date
-        ? slot.date.toISOString().split('T')[0]
-        : String(slot.date).split('T')[0];
+      const dateStr = String(slot.date).split('T')[0];
       const timeStr = String(slot.startTime).substring(0, 8);
       const scheduledAt = new Date(`${dateStr}T${timeStr}Z`).toISOString();
 

@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import i18n from '../../i18n';
 import { useAuth } from '../../context/AuthContext';
-import { preferencesApi, notificationsApi, consentApi, exportsApi, authApi, type UserPreferences } from '../../api';
+import { useTheme, type AppTheme } from '../../context/ThemeContext';
+import { preferencesApi, notificationsApi, consentApi, exportsApi, authApi, patientCodesApi, type UserPreferences } from '../../api';
+import type { PatientCode } from '../../types';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import Badge from '../../components/ui/Badge';
@@ -14,16 +16,19 @@ const LANGUAGES = [
   { code: 'es-ES', label: 'Español', flag: '🇪🇸' },
 ];
 
-function Toggle({ checked, onChange, label }: { checked: boolean; onChange: (v: boolean) => void; label: string }) {
+function Toggle({ checked, onChange, label, description }: { checked: boolean; onChange: (v: boolean) => void; label: string; description?: string }) {
   return (
-    <label className="flex items-center justify-between cursor-pointer">
-      <span className="text-sm text-gray-700">{label}</span>
+    <label className="flex items-start justify-between gap-4 cursor-pointer">
+      <div>
+        <span className="text-sm text-gray-700">{label}</span>
+        {description && <p className="text-xs text-gray-400 mt-0.5">{description}</p>}
+      </div>
       <button
         type="button"
         role="switch"
         aria-checked={checked}
         onClick={() => onChange(!checked)}
-        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${checked ? 'bg-indigo-600' : 'bg-gray-200'}`}
+        className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors ${checked ? 'bg-indigo-600' : 'bg-gray-200'}`}
       >
         <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${checked ? 'translate-x-6' : 'translate-x-1'}`} />
       </button>
@@ -43,15 +48,21 @@ export default function SettingsPage() {
   const [currentLang, setCurrentLang] = useState(i18n.language);
   const [doctors, setDoctors] = useState<any[]>([]);
   const [revoking, setRevoking] = useState<string | null>(null);
+  const [patientCode, setPatientCode] = useState<PatientCode | null>(null);
+  const [codeCopied, setCodeCopied] = useState(false);
   const [requestingExport, setRequestingExport] = useState(false);
   const [pwForm, setPwForm] = useState({ current: '', next: '', confirm: '' });
   const [pwSaving, setPwSaving] = useState(false);
   const [pwError, setPwError] = useState('');
   const [pwSuccess, setPwSuccess] = useState(false);
+  const { theme, setTheme } = useTheme();
 
   useEffect(() => {
     preferencesApi.get().then((r) => setPrefs(r.data)).catch(() => {});
     consentApi.myDoctors().then((r) => setDoctors(r.data)).catch(() => {});
+    if (user?.role === 'patient') {
+      patientCodesApi.myCode().then((r) => setPatientCode(r.data)).catch(() => {});
+    }
   }, []);
 
   const save = async (patch: Partial<UserPreferences>) => {
@@ -74,7 +85,7 @@ export default function SettingsPage() {
 
   const changeLanguage = (code: string) => {
     i18n.changeLanguage(code);
-    localStorage.setItem('sentido_lang', code);
+    localStorage.setItem('praxis_lang', code);
     setCurrentLang(code);
     if (prefs) save({ language: code });
   };
@@ -140,6 +151,42 @@ export default function SettingsPage() {
         <p className="text-xs text-gray-400 capitalize">{user?.role}</p>
       </Card>
 
+      {/* Código único de paciente (5.3) */}
+      {user?.role === 'patient' && (
+        <Card className="space-y-3">
+          <p className="text-xs text-gray-500 uppercase font-semibold tracking-wide">Identificador de paciente</p>
+          {patientCode ? (
+            <>
+              <div className="flex items-center gap-3">
+                <p className="text-2xl font-bold font-mono text-indigo-700 tracking-widest">
+                  {patientCode.fullCode}
+                </p>
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText(patientCode.fullCode);
+                    setCodeCopied(true);
+                    setTimeout(() => setCodeCopied(false), 2000);
+                  }}
+                  className="text-xs text-indigo-400 hover:text-indigo-600"
+                >
+                  {codeCopied ? '✓ copiado' : '📋'}
+                </button>
+              </div>
+              <p className="text-xs text-gray-400 leading-relaxed">
+                Este é seu código permanente na plataforma Práxis. Ele é usado para pseudonimização
+                e identificação em contextos clínicos, preservando sua privacidade.
+              </p>
+              <div className="rounded-lg bg-gray-50 border border-gray-100 px-3 py-2 text-xs text-gray-500 font-mono space-y-0.5">
+                <p><span className="text-gray-400">Prefixo:</span> {patientCode.prefix}</p>
+                <p><span className="text-gray-400">Criado em:</span> {new Date(patientCode.createdAt).toLocaleDateString('pt-BR')}</p>
+              </div>
+            </>
+          ) : (
+            <p className="text-xs text-gray-400">Código sendo gerado automaticamente…</p>
+          )}
+        </Card>
+      )}
+
       {/* Trocar senha */}
       <Card className="space-y-3">
         <p className="text-xs text-gray-500 uppercase font-semibold tracking-wide">Segurança</p>
@@ -185,6 +232,19 @@ export default function SettingsPage() {
           ))}
         </div>
       </Card>
+
+      {/* Check-in */}
+      {prefs && (
+        <Card className="space-y-4">
+          <p className="text-xs text-gray-500 uppercase font-semibold tracking-wide">Check-in diário</p>
+          <Toggle
+            checked={prefs.checkinShowMedication !== false}
+            onChange={(v) => save({ checkinShowMedication: v })}
+            label="Incluir pergunta de medicação no check-in"
+            description="Desative se não usa medicação de rotina ou preferir não registrar."
+          />
+        </Card>
+      )}
 
       {/* Notificações */}
       <Card className="space-y-4">
@@ -275,6 +335,93 @@ export default function SettingsPage() {
             🗑 {t('settings.deleteAccount')}
           </Button>
         </div>
+      </Card>
+
+      {/* Aparência */}
+      <Card className="space-y-4">
+        <p className="text-xs text-gray-500 uppercase font-semibold tracking-wide">Aparência</p>
+        <p className="text-xs text-gray-400">Escolha o modo visual que combina com você</p>
+        <div className="grid grid-cols-1 gap-2">
+          {(
+            [
+              {
+                id: 'fofo' as AppTheme,
+                label: 'Fofo',
+                desc: 'Espíritos do Studio Ghibli — leveza e aquarela',
+                icon: '🌸',
+                preview: 'bg-gradient-to-br from-indigo-50 to-purple-100',
+                accent: 'bg-indigo-600',
+              },
+              {
+                id: 'classico' as AppTheme,
+                label: 'Clássico',
+                desc: 'Sóbrio, espaços em branco, tipografia serifada',
+                icon: '🏛️',
+                preview: 'bg-white border border-gray-200',
+                accent: 'bg-teal-600',
+              },
+              {
+                id: 'serio' as AppTheme,
+                label: 'Sério',
+                desc: 'Minimalista — foco em dados, sem ornamentos',
+                icon: '📊',
+                preview: 'bg-gradient-to-br from-slate-100 to-slate-200',
+                accent: 'bg-slate-700',
+              },
+            ] as const
+          ).map((opt) => (
+            <button
+              key={opt.id}
+              onClick={() => setTheme(opt.id)}
+              className={`flex items-center gap-3 rounded-lg border px-3 py-3 text-left transition-all ${
+                theme === opt.id
+                  ? 'border-indigo-300 bg-indigo-50 ring-1 ring-indigo-200'
+                  : 'border-gray-100 hover:border-gray-200 hover:bg-gray-50'
+              }`}
+            >
+              {/* Mini preview */}
+              <div className={`shrink-0 w-12 h-8 rounded-md ${opt.preview} flex items-end gap-0.5 p-1.5 overflow-hidden`}>
+                <div className={`h-3 w-1 rounded-sm ${opt.accent} opacity-90`} />
+                <div className={`h-5 w-1 rounded-sm ${opt.accent}`} />
+                <div className={`h-2 w-1 rounded-sm ${opt.accent} opacity-70`} />
+                <div className={`h-4 w-1 rounded-sm ${opt.accent} opacity-80`} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="text-base">{opt.icon}</span>
+                  <span className={`text-sm font-medium ${theme === opt.id ? 'text-indigo-700' : 'text-gray-800'}`}>
+                    {opt.label}
+                  </span>
+                  {theme === opt.id && (
+                    <span className="text-xs text-indigo-500 font-medium">Ativo</span>
+                  )}
+                </div>
+                <p className="text-xs text-gray-400 mt-0.5">{opt.desc}</p>
+              </div>
+            </button>
+          ))}
+        </div>
+      </Card>
+
+      {/* Legal */}
+      <Card className="space-y-2">
+        <p className="text-xs text-gray-500 uppercase font-semibold tracking-wide">Legal</p>
+        <Link
+          to="/terms"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center justify-between rounded-lg px-3 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+        >
+          <span>⚖️ Termos de uso e privacidade</span>
+          <span className="text-gray-400 text-xs">→</span>
+        </Link>
+        <a
+          href="mailto:privacidade@praxis.saude.br"
+          className="flex items-center justify-between rounded-lg px-3 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+        >
+          <span>🔐 Contato com o DPO (privacidade)</span>
+          <span className="text-gray-400 text-xs">privacidade@praxis.saude.br</span>
+        </a>
       </Card>
 
       <Button variant="ghost" onClick={handleLogout} className="w-full">

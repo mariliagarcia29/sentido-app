@@ -31,3 +31,10 @@ google-service-account.json
 # IDE
 .vscode/
 .idea/
+
+# Local Netlify folder
+.netlify
+
+# Design export archives and binary mockups (large, not versioned)
+*.zip
+design/mockups/
