@@ -9,6 +9,9 @@ export enum AppointmentStatus {
   CANCELLED = 'cancelled',
 }
 
+// Fonte da consulta: nativa do app, importada do Nim Saúde, ou inserida manualmente
+export type AppointmentSource = 'native' | 'nimsaude' | 'manual';
+
 @Entity('appointments')
 export class Appointment {
   @PrimaryGeneratedColumn('uuid')
@@ -39,6 +42,19 @@ export class Appointment {
 
   @Column({ nullable: true })
   meetingUrl: string;
+
+  // Integração externa (seção 4)
+  @Column({ default: 'native' })
+  source: string;
+
+  @Column({ name: 'external_id', type: 'varchar', nullable: true })
+  externalId: string | null;
+
+  @Column({ name: 'appointment_type', type: 'varchar', nullable: true })
+  appointmentType: string | null;
+
+  @Column({ name: 'room_name', type: 'varchar', nullable: true })
+  roomName: string | null;
 
   @CreateDateColumn()
   createdAt: Date;

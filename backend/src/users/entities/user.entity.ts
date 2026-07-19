@@ -7,6 +7,7 @@ import { Exclude } from 'class-transformer';
 export enum UserRole {
   PATIENT = 'patient',
   DOCTOR = 'doctor',
+  CLINIC = 'clinic',
 }
 
 @Entity('users')
@@ -39,12 +40,42 @@ export class User {
   @Column({ default: false })
   isAdmin!: boolean;
 
-  // Campos exclusivos de médicos
-  @Column({ nullable: true })
-  specialty!: string;
+  // Campos de profissionais de saúde
+  @Column({ type: 'varchar', nullable: true })
+  specialtyType!: string | null; // medico | psicologo | educador_fisico | nutricionista | enfermeiro | outro
 
-  @Column({ nullable: true })
-  crmLink!: string;
+  @Column({ type: 'varchar', nullable: true })
+  specialty!: string | null;
+
+  @Column({ type: 'varchar', nullable: true })
+  crmLink!: string | null; // número de registro profissional (CRM, CRP, CREF, CRN, COREN, etc.)
+
+  @Column({ type: 'varchar', nullable: true })
+  institution!: string | null; // instituição associada (para profissionais)
+
+  // Campos exclusivos de clínicas
+  @Column({ type: 'varchar', nullable: true })
+  cnpj!: string | null;
+
+  @Column({ type: 'varchar', nullable: true })
+  responsibleName!: string | null;
+
+  @Column({ type: 'varchar', nullable: true })
+  responsibleRegistration!: string | null;
+
+  // LGPD — consentimento geral de uso da plataforma
+  @Column({ type: 'timestamptz', nullable: true })
+  lgpdConsentedAt!: Date | null;
+
+  @Column({ type: 'varchar', nullable: true })
+  lgpdConsentVersion!: string | null;
+
+  // IA — aceite formal dos princípios de uso (6.1)
+  @Column({ type: 'timestamptz', nullable: true })
+  aiPrinciplesConsentAt!: Date | null;
+
+  @Column({ type: 'varchar', nullable: true })
+  aiPrinciplesConsentVersion!: string | null;
 
   @CreateDateColumn()
   createdAt!: Date;
