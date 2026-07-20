@@ -22,24 +22,27 @@ export class RedisIoAdapter extends IoAdapter {
       port,
       password: password || undefined,
       tls: tls ? ({} as any) : undefined,
-      // Reconnect automaticamente — crítico para Pub/Sub persistente
-      retryStrategy: (times: number) => Math.min(times * 100, 3000),
+      // Sem retry — se indisponível, o app opera em single-instance sem WebSocket Redis
+      retryStrategy: () => null,
+      connectTimeout: 5000,
     };
 
     const pubClient = new Redis(redisOpts);
     const subClient = pubClient.duplicate();
 
-    // Aguarda os dois clientes ficarem prontos antes de criar o adapter
-    await Promise.all([
+    // Absorve todos os error events para não derrubar o processo com unhandled error
+    pubClient.on('error', () => {});
+    subClient.on('error', () => {});
+
+    const waitReady = (client: Redis): Promise<void> =>
       new Promise<void>((resolve, reject) => {
-        pubClient.once('ready', resolve);
-        pubClient.once('error', reject);
-      }),
-      new Promise<void>((resolve, reject) => {
-        subClient.once('ready', resolve);
-        subClient.once('error', reject);
-      }),
-    ]);
+        client.once('ready', resolve);
+        client.once('close', () => reject(new Error('Redis connection closed')));
+        // Timeout de segurança — não aguarda indefinidamente
+        setTimeout(() => reject(new Error('Redis connect timeout')), 6000);
+      });
+
+    await Promise.all([waitReady(pubClient), waitReady(subClient)]);
 
     this.adapterConstructor = createAdapter(pubClient, subClient);
     this.logger.log(`Redis Socket.IO adapter conectado em ${host}:${port}`);
